@@ -1,3 +1,7 @@
+"""
+Run this script to start the program.
+"""
+
 from enum import Enum
 import random
 import sys
@@ -8,13 +12,15 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 import numpy as np
+from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QWidget, QPushButton, QLabel, QSpinBox, QDoubleSpinBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
 import vtk
 from vtk import vtkRenderer, vtkRenderWindow, vtkRenderWindowInteractor, vtkPolyDataMapper, vtkDataSetMapper, vtkActor, vtkPolyData, vtkCellArray, vtkStructuredGrid, vtkPoints
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
 
+from interaction import InteractorStyle
 import bezier
 
 
@@ -88,8 +94,11 @@ class Surface(Geometry):
         self.data_cp = vtkPolyData()
         self.data_cp.SetPoints(self.points_cp)
         self.data_cp.SetVerts(vertices_cp)
-        mapper_cp = vtkDataSetMapper()
+        source = vtk.vtkSphereSource()
+        source.SetRadius(0.1)
+        mapper_cp = vtk.vtkGlyph3DMapper()
         mapper_cp.SetInputData(self.data_cp)
+        mapper_cp.SetSourceConnection(source.GetOutputPort())
 
         self.data_surface = vtkStructuredGrid()
         self.data_surface.SetDimensions(self.nodes.shape[1], self.nodes.shape[2], 1)
@@ -152,6 +161,8 @@ class MainWindow(QMainWindow):
 
         # List containing all curves and surfaces.
         self.geometries = []
+        # The currently selected geometry.
+        self.geometry_selected = None
 
         # Create the overall layout of the window.
         layout = QHBoxLayout()
@@ -321,9 +332,13 @@ class MainWindow(QMainWindow):
         """Return a VTK widget for displaying geometry."""
         self.ren = vtkRenderer()
         widget = QVTKRenderWindowInteractor(self)
-        widget.GetRenderWindow().AddRenderer(self.ren)
-        self.iren = widget.GetRenderWindow().GetInteractor()
-        self.iren.SetInteractorStyle(vtk.vtkInteractorStyleTrackballCamera())
+        self.renwin = widget.GetRenderWindow()
+        self.renwin.AddRenderer(self.ren)
+        self.iren = self.renwin.GetInteractor()
+        
+        style = InteractorStyle()
+        style.SetDefaultRenderer(self.ren)
+        self.iren.SetInteractorStyle(style)
 
         return widget
     
@@ -354,9 +369,6 @@ class MainWindow(QMainWindow):
         )
         control_points = control_points.transpose((2, 0, 1))
         surface = bezier.bezier_surface(control_points, number_u, number_v)
-
-        # self.add_points(control_points)
-        # self.add_surface(surface)
 
         geometry = BezierSurface(control_points, surface, number_u, number_v)
         self.geometries.append(geometry)
@@ -458,15 +470,23 @@ class MainWindow(QMainWindow):
     def test_2(self):
         print("Test 2")
 
-    def plot(self):
-        """Plot data."""
-        # The data to plot.
-        data = [[random.random() for i in range(10)] for _ in range(3)]
+    # Overrides what occurs when the window is resized.
+    # def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
+    #     size = self.visualizer.size()
+    #     print(self.renwin.GetSize(), self.ren.GetSize())
+    #     self.renwin.SetSize(size.width(), size.height())
+    #     print(size)
+    #     print(self.renwin.GetSize(), self.ren.GetSize())
+
+    # def plot(self):
+    #     """Plot data."""
+    #     # The data to plot.
+    #     data = [[random.random() for i in range(10)] for _ in range(3)]
         
-        # Clear the figure and plot the new data.
-        plt.cla()
-        self.axes.plot3D(data[0], data[1], data[2], '.-')
-        self.canvas.draw()
+    #     # Clear the figure and plot the new data.
+    #     plt.cla()
+    #     self.axes.plot3D(data[0], data[1], data[2], '.-')
+    #     self.canvas.draw()
 
 
 if __name__ == '__main__':
