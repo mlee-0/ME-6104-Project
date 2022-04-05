@@ -337,6 +337,14 @@ class MainWindow(QMainWindow):
 
     def test_2(self):
         print("Test 2")
+        cpp=np.array([
+            [[1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8]],
+            [[20, 21, 22, 23], [17, 17, 17, 17], [14, 14, 14, 14], [11, 11, 11, 11]],
+            [[2, 5, 4, 3], [2, 6, 5, 5], [2, 6, 5, 4], [2, 3, 4, 3]],
+        ])
+        self.geometries[-1].regenerate(cpp, 10, 10)
+        self.ren.Render()
+        self.iren.Render()
 
     # Overrides what occurs when the window is resized.
     # def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:

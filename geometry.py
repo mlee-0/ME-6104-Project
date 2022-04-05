@@ -87,12 +87,17 @@ class Geometry(ABC):
         self.actor_surface.GetProperty().SetAmbient(0.75)
     
     def update(self) -> None:
+        """Call this method after updating point data."""
         self.points_cp.Modified()
         self.points_surface.Modified()
         self.actor_cp.GetMapper().Update()
         self.actor_surface.GetMapper().Update()
+    
+    @abstractmethod
+    def regenerate(self, control_points: np.ndarray) -> None:
+        """Regenerate all nodes in the geometry. Used when changing the number of control points or nodes, which requires new vtkPoints objects to be created."""
 
-    def get_actors(self):
+    def get_actors(self) -> Tuple[vtk.vtkActor]:
         """Return a tuple of all actors associated with this geometry."""
         return self.actor_cp, self.actor_surface
 
@@ -143,6 +148,37 @@ class BezierSurface(Geometry):
                 self.points_surface.SetPoint(self.ids_surface[k], self.nodes[:, i, j])
                 k += 1
         super().update()
+    
+    def regenerate(self, control_points: np.ndarray, number_u: int, number_v: int):
+        self.number_u = number_u
+        self.number_v = number_v
+        self.control_points = control_points
+        self.nodes = bezier.bezier_surface(control_points, number_u, number_v)
+        
+        del self.points_cp, self.points_surface
+        self.points_cp = vtk.vtkPoints()
+        self.points_surface = vtk.vtkPoints()
+        self.ids_cp = []
+        self.ids_surface = []
+        for i in range(self.control_points.shape[1]):
+            for j in range(self.control_points.shape[2]):
+                self.ids_cp.append(
+                    self.points_cp.InsertNextPoint(self.control_points[:, i, j])
+                )
+                self.vertices_cp.InsertNextCell(1)
+                self.vertices_cp.InsertCellPoint(self.ids_cp[-1])
+        for i in range(self.nodes.shape[1]):
+            for j in range(self.nodes.shape[2]):
+                self.ids_surface.append(
+                    self.points_surface.InsertNextPoint(self.nodes[:, i, j])
+                )
+        
+        self.data_cp.SetPoints(self.points_cp)
+        self.data_surface.SetDimensions(self.nodes.shape[1], self.nodes.shape[2], 1)
+        self.data_surface.SetPoints(self.points_surface)
+        
+        super().update()
+
 
 class HermiteSurface(Geometry):
     def __init__(self, *args, **kwargs):
