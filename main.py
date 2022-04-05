@@ -2,158 +2,26 @@
 Run this script to start the program.
 """
 
-from enum import Enum
 import random
 import sys
 from typing import List, Tuple
 
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
+# from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+# from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
+# import matplotlib.pyplot as plt
+# from mpl_toolkits import mplot3d
 import numpy as np
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
 import vtk
-from vtk import vtkRenderer, vtkRenderWindow, vtkRenderWindowInteractor, vtkPolyDataMapper, vtkDataSetMapper, vtkActor, vtkPolyData, vtkCellArray, vtkStructuredGrid, vtkPoints
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
 
-from interaction import InteractorStyle
+from geometry import *
 import bezier
+from interaction import InteractorStyle
 
-
-class Color:
-    BLUE = (0/255, 149/255, 255/255)
-    RED = (255/255, 64/255, 64/255)
-
-    BLACK = (0, 0, 0)
-    WHITE = (1, 1, 1)
-
-class Geometry:
-    BEZIER = "Bézier"
-    HERMITE = "Hermite"
-    BSPLINE = "B-Spline"
-
-    def __init__(self, control_points: np.ndarray, nodes: np.ndarray, number_u: int = None, number_v: int = None):
-        self.control_points = control_points
-        self.nodes = nodes
-        self.number_u = number_u
-        self.number_v = number_v
-
-class Curve(Geometry):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.points = vtkPoints()
-        vertices = vtkCellArray()
-        for i in range(self.control_points.shape[1]):
-            id_point = self.points.InsertNextPoint(self.control_points[:, i])
-            vertices.InsertNextCell(1)
-            vertices.InsertCellPoint(id_point)
-        
-        self.data = vtkPolyData()
-        self.data.SetPoints(self.points)
-        self.data.SetVerts(vertices)
-        self.mapper = vtkDataSetMapper()
-        self.mapper.SetInputData(self.data)
-
-        self.actor = vtkActor()
-        self.actor.SetMapper(self.mapper)
-        self.actor.GetProperty().SetPointSize(10)
-        self.actor.GetProperty().SetColor(Color.BLUE)
-        self.actor.GetProperty().SetVertexVisibility(True)
-        self.actor.GetProperty().SetEdgeVisibility(False)
-
-class Surface(Geometry):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Store point data.
-        self.points_cp = vtkPoints()
-        vertices_cp = vtkCellArray()
-        self.ids_cp = []
-        for i in range(self.control_points.shape[1]):
-            for j in range(self.control_points.shape[2]):
-                self.ids_cp.append(
-                    self.points_cp.InsertNextPoint(self.control_points[:, i, j])
-                )
-                vertices_cp.InsertNextCell(1)
-                vertices_cp.InsertCellPoint(self.ids_cp[-1])
-        
-        self.points_surface = vtkPoints()
-        self.ids_surface = []
-        for i in range(self.nodes.shape[1]):
-            for j in range(self.nodes.shape[2]):
-                self.ids_surface.append(
-                    self.points_surface.InsertNextPoint(self.nodes[:, i, j])
-                )
-
-        # Create data objects and mappers.
-        self.data_cp = vtkPolyData()
-        self.data_cp.SetPoints(self.points_cp)
-        self.data_cp.SetVerts(vertices_cp)
-        source = vtk.vtkSphereSource()
-        source.SetRadius(0.1)
-        mapper_cp = vtk.vtkGlyph3DMapper()
-        mapper_cp.SetInputData(self.data_cp)
-        mapper_cp.SetSourceConnection(source.GetOutputPort())
-
-        self.data_surface = vtkStructuredGrid()
-        self.data_surface.SetDimensions(self.nodes.shape[1], self.nodes.shape[2], 1)
-        self.data_surface.SetPoints(self.points_surface)
-        mapper_surface = vtkDataSetMapper()
-        mapper_surface.SetInputData(self.data_surface)
-
-        # Create actors.
-        self.actor_cp = vtkActor()
-        self.actor_cp.SetMapper(mapper_cp)
-        self.actor_cp.GetProperty().SetPointSize(10)
-        self.actor_cp.GetProperty().SetColor(Color.BLUE)
-
-        self.actor_surface = vtkActor()
-        self.actor_surface.SetMapper(mapper_surface)
-        self.actor_surface.GetProperty().SetVertexVisibility(False)
-        self.actor_surface.GetProperty().SetEdgeVisibility(True)
-        self.actor_surface.GetProperty().SetAmbient(0.75)
-
-    def update(self) -> None:
-        self.points_cp.Modified()
-        self.points_surface.Modified()
-        self.actor_cp.GetMapper().Update()
-        self.actor_surface.GetMapper().Update()
-
-    def get_actors(self) -> Tuple[vtkActor]:
-        return self.actor_cp, self.actor_surface
-
-class BezierSurface(Surface):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
-    def update(self, point: np.ndarray, indices: tuple):
-        self.control_points[:, indices[0], indices[1]] = point
-        self.nodes = bezier.bezier_surface(self.control_points, self.number_u, self.number_v)
-        k = 0
-        for i in range(self.control_points.shape[1]):
-            for j in range(self.control_points.shape[2]):
-                self.points_cp.SetPoint(self.ids_cp[k], self.control_points[:, i , j])
-                k += 1
-        k = 0
-        for i in range(self.nodes.shape[1]):
-            for j in range(self.nodes.shape[2]):
-                self.points_surface.SetPoint(self.ids_surface[k], self.nodes[:, i, j])
-                k += 1
-        super().update()
-
-class HermiteSurface(Surface):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
-    def update(self, control_points: np.ndarray):
-        self.control_points = control_points
-        pass
-        super().update()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -301,36 +169,36 @@ class MainWindow(QMainWindow):
 
         return widget
 
-    def _make_plot(self) -> QWidget:
-        """Return a plot widget."""
-        main_layout = QVBoxLayout()
+    # def _make_plot(self) -> QWidget:
+    #     """Return a plot widget."""
+    #     main_layout = QVBoxLayout()
 
-        # Create the figure.
-        self.figure = plt.figure()
-        self.axes = mplot3d.Axes3D(self.figure, auto_add_to_figure=False)
-        self.figure.add_axes(self.axes)
+    #     # Create the figure.
+    #     self.figure = plt.figure()
+    #     self.axes = mplot3d.Axes3D(self.figure, auto_add_to_figure=False)
+    #     self.figure.add_axes(self.axes)
 
-        # Create the canvas widget that displays the figure.
-        self.canvas = FigureCanvasQTAgg(self.figure)
+    #     # Create the canvas widget that displays the figure.
+    #     self.canvas = FigureCanvasQTAgg(self.figure)
 
-        # Create the plot toolbar.
-        toolbar = NavigationToolbar2QT(self.canvas, self)
+    #     # Create the plot toolbar.
+    #     toolbar = NavigationToolbar2QT(self.canvas, self)
 
-        button = QPushButton('Plot')
-        button.clicked.connect(self.plot)
+    #     button = QPushButton('Plot')
+    #     button.clicked.connect(self.plot)
 
-        main_layout.addWidget(toolbar)
-        main_layout.addWidget(self.canvas)
-        main_layout.addWidget(button)
+    #     main_layout.addWidget(toolbar)
+    #     main_layout.addWidget(self.canvas)
+    #     main_layout.addWidget(button)
 
-        widget = QWidget()
-        widget.setLayout(main_layout)
+    #     widget = QWidget()
+    #     widget.setLayout(main_layout)
 
-        return widget
+    #     return widget
     
     def _make_visualizer(self) -> QWidget:
         """Return a VTK widget for displaying geometry."""
-        self.ren = vtkRenderer()
+        self.ren = vtk.vtkRenderer()
         widget = QVTKRenderWindowInteractor(self)
         self.renwin = widget.GetRenderWindow()
         self.renwin.AddRenderer(self.ren)
