@@ -10,13 +10,7 @@ import numpy as np
 import vtk
 
 import bezier
-
-
-BLUE = (0/255, 149/255, 255/255)
-RED = (255/255, 64/255, 64/255)
-
-BLACK = (0, 0, 0)
-WHITE = (1, 1, 1)
+from colors import *
 
 
 class Geometry(ABC):
@@ -77,14 +71,13 @@ class Geometry(ABC):
         # Create actors used to display geometry.
         self.actor_cp = vtk.vtkActor()
         self.actor_cp.SetMapper(mapper_cp)
-        # self.actor_cp.GetProperty().SetPointSize(10)
         self.actor_cp.GetProperty().SetColor(BLUE)
 
         self.actor_surface = vtk.vtkActor()
         self.actor_surface.SetMapper(mapper_surface)
+        self.actor_surface.GetProperty().SetColor(WHITE)
         self.actor_surface.GetProperty().SetVertexVisibility(False)
         self.actor_surface.GetProperty().SetEdgeVisibility(True)
-        self.actor_surface.GetProperty().SetAmbient(0.75)
     
     def update(self) -> None:
         """Call this method after updating point data."""
