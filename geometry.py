@@ -24,8 +24,9 @@ class Geometry(ABC):
         self.cp = cp
         self.number_u = number_u
         self.number_v = number_v
-        # Calculate nodes.
+        # Calculate nodes and the order.
         self.nodes = self.calculate(self.cp, self.number_u, self.number_v)
+        self.order = self.calculate_order(self.cp)
 
         # Objects used to store coordinate point data.
         self.points_cp = vtk.vtkPoints()
@@ -65,12 +66,17 @@ class Geometry(ABC):
     
     @abstractmethod
     def update(self) -> None:
-        """Recalculate Call this method from the GUI and provide user-specified information to recalculate the geometry."""
+        """Recalculate the geometry if the user modified information in the GUI."""
     
     @staticmethod
     @abstractmethod
     def calculate(cp: np.ndarray) -> np.ndarray:
         """Calculate and return all nodes in the geometry for the given control points."""
+    
+    @staticmethod
+    @abstractmethod
+    def calculate_order(cp: np.ndarray) -> int:
+        """Calculate the order of the geometry using the given control points."""
     
     def update_data(self) -> None:
         """Update objects used to store point data. Used when the numbers of control points or nodes do not change."""
@@ -128,7 +134,7 @@ class Geometry(ABC):
     def get_actors(self) -> Tuple[vtk.vtkActor]:
         """Return a tuple of all actors associated with this geometry."""
         return self.actor_cp, self.actor_surface
-    
+
 # class Curve(Geometry):
 #     def __init__(self, *args, **kwargs):
 #         super().__init__(*args, **kwargs)
@@ -158,10 +164,13 @@ class Geometry(ABC):
 #     def __init__(self, *args, **kwargs):
 #         super().__init__(*args, **kwargs)
     
+class BezierCurve(Geometry):
+    pass
+
+class HermiteCurve(Geometry):
+    pass
+
 class BezierSurface(Geometry):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
     def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None):
         # Whether the number of points has changed.
         requires_reset = (
@@ -178,8 +187,9 @@ class BezierSurface(Geometry):
         if number_v is not None:
             self.number_v = number_v
         
-        # Calculate nodes.
+        # Calculate nodes and the order.
         self.nodes = self.calculate(self.cp, self.number_u, self.number_v)
+        self.order = self.calculate_order(self.cp)
         if requires_reset:
             self.reset_data()
         else:
@@ -188,12 +198,13 @@ class BezierSurface(Geometry):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int):
         return bezier.bezier_surface(cp, number_u, number_v)
+    
+    @staticmethod
+    def calculate_order(cp: np.ndarray) -> Tuple[int, int]:
+        return (cp.shape[1] - 1, cp.shape[2] - 1)
 
 
 class HermiteSurface(Geometry):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
     def update(self, cp: np.ndarray):
         self.cp = cp
         pass
@@ -201,3 +212,7 @@ class HermiteSurface(Geometry):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int):
         pass
+
+    @staticmethod
+    def calculate_order(cp: np.ndarray):
+        return 3

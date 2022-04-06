@@ -1,10 +1,9 @@
 """
-Run this script to start the program.
+Run this script to start the GUI.
 """
 
 import random
 import sys
-from typing import List, Tuple
 
 # from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 # from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
@@ -43,9 +42,9 @@ class MainWindow(QMainWindow):
         self.sidebar = self._make_sidebar()
         # self.plot = self._make_plot()
         self.visualizer = self._make_visualizer()
-        layout.addWidget(self.sidebar)
+        layout.addWidget(self.sidebar, stretch=0)
         # layout.addWidget(self.plot)
-        layout.addWidget(self.visualizer)
+        layout.addWidget(self.visualizer, stretch=1)
 
         # Start the interactor after the layout is created.
         self.iren.Initialize()
@@ -80,6 +79,8 @@ class MainWindow(QMainWindow):
         self.field_x.setMaximum(100)
         self.field_x.setMinimum(-100)
         self.field_x.setSingleStep(0.1)
+        self.field_x.setDecimals(1)
+        self.field_x.setAlignment(Qt.AlignRight)
         self.field_x.valueChanged.connect(self.update_control_point)
         layout = QHBoxLayout()
         layout.addWidget(QLabel("X"))
@@ -90,6 +91,8 @@ class MainWindow(QMainWindow):
         self.field_y.setMaximum(100)
         self.field_y.setMinimum(-100)
         self.field_y.setSingleStep(0.1)
+        self.field_y.setDecimals(1)
+        self.field_y.setAlignment(Qt.AlignRight)
         self.field_y.valueChanged.connect(self.update_control_point)
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Y"))
@@ -100,6 +103,8 @@ class MainWindow(QMainWindow):
         self.field_z.setMaximum(100)
         self.field_z.setMinimum(-100)
         self.field_z.setSingleStep(0.1)
+        self.field_z.setDecimals(1)
+        self.field_z.setAlignment(Qt.AlignRight)
         self.field_z.valueChanged.connect(self.update_control_point)
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Z"))
@@ -152,19 +157,37 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         layout = QHBoxLayout()
-        self.field_number_u = QSpinBox()
-        self.field_number_u.setMinimum(2)
-        self.field_number_u.setMaximum(100)
+        self.field_cp_u = QSpinBox()
+        self.field_cp_u.setMinimum(2)
+        self.field_cp_u.setMaximum(100)
+        self.field_cp_u.setAlignment(Qt.AlignRight)
+        self.field_cp_v = QSpinBox()
+        self.field_cp_v.setMinimum(2)
+        self.field_cp_v.setMaximum(100)
+        self.field_cp_v.setAlignment(Qt.AlignRight)
+        layout.addWidget(QLabel("Control Points:"))
+        layout.addStretch(1)
         layout.addWidget(QLabel("u"))
-        layout.addWidget(self.field_number_u)
+        layout.addWidget(self.field_cp_u)
+        layout.addWidget(QLabel("v"))
+        layout.addWidget(self.field_cp_v)
         main_layout.addLayout(layout)
 
         layout = QHBoxLayout()
-        self.field_number_v = QSpinBox()
-        self.field_number_v.setMinimum(2)
-        self.field_number_v.setMaximum(100)
+        self.field_nodes_u = QSpinBox()
+        self.field_nodes_u.setMinimum(2)
+        self.field_nodes_u.setMaximum(100)
+        self.field_nodes_u.setAlignment(Qt.AlignRight)
+        self.field_nodes_v = QSpinBox()
+        self.field_nodes_v.setMinimum(2)
+        self.field_nodes_v.setMaximum(100)
+        self.field_nodes_v.setAlignment(Qt.AlignRight)
+        layout.addWidget(QLabel("Nodes:"))
+        layout.addStretch(1)
+        layout.addWidget(QLabel("u"))
+        layout.addWidget(self.field_nodes_u)
         layout.addWidget(QLabel("v"))
-        layout.addWidget(self.field_number_v)
+        layout.addWidget(self.field_nodes_v)
         main_layout.addLayout(layout)
 
         return widget
@@ -249,62 +272,6 @@ class MainWindow(QMainWindow):
         """Add a preset Hermite surface to the visualizer."""
         pass
     
-    # def add_points(self, points: np.ndarray) -> None:
-    #     """Add the specified set of points, defined as a 3-n array, to the visualizer."""
-    #     # Reshape the input array if it has more than 2 dimensions.
-    #     if points.ndim > 2:
-    #         points = points.reshape(points.shape[0], -1)
-        
-    #     point_data = vtkPoints()
-    #     vertices = vtkCellArray()
-    #     for i in range(points.shape[1]):
-    #         id_point = point_data.InsertNextPoint(points[:, i])
-    #         vertices.InsertNextCell(1)
-    #         vertices.InsertCellPoint(id_point)
-        
-    #     data = vtkPolyData()
-    #     data.SetPoints(point_data)
-    #     data.SetVerts(vertices)
-    #     mapper = vtkDataSetMapper()
-    #     mapper.SetInputData(data)
-
-    #     actor = vtkActor()
-    #     actor.SetMapper(mapper)
-    #     actor.GetProperty().SetPointSize(10)
-    #     actor.GetProperty().SetColor(Color.BLUE)
-    #     actor.GetProperty().SetVertexVisibility(True)
-    #     actor.GetProperty().SetEdgeVisibility(False)
-    #     self.ren.AddActor(actor)
-
-    #     self.ren.Render()
-    #     self.reset_camera()
-
-    # def add_surface(self, surface: np.ndarray) -> None:
-    #     """Add the specified surface, defined as a 3-u-v array, to the visualizer."""
-    #     # Add the points in the array to an object.
-    #     points = vtkPoints()
-    #     for i in range(surface.shape[1]):
-    #         for j in range(surface.shape[2]):
-    #             points.InsertNextPoint(surface[:, i, j])
-
-    #     data = vtkStructuredGrid()
-    #     data.SetDimensions(surface.shape[1], surface.shape[2], 1)
-    #     data.SetPoints(points)
-    #     mapper = vtkDataSetMapper()
-    #     mapper.SetInputData(data)
-
-    #     # Create an actor to show the surface.
-    #     actor = vtkActor()
-    #     actor.SetMapper(mapper)
-    #     actor.GetProperty().SetVertexVisibility(False)
-    #     actor.GetProperty().SetVertexColor(Color.BLUE)
-    #     actor.GetProperty().SetEdgeVisibility(True)
-    #     actor.GetProperty().SetAmbient(1)
-    #     self.ren.AddActor(actor)
-
-    #     self.ren.Render()
-    #     self.reset_camera()
-
     def update_control_point(self):
         point = np.array([
             self.field_x.value(),
@@ -321,19 +288,20 @@ class MainWindow(QMainWindow):
         pass
 
     def test_1(self):
+        print("Test 2")
         cp = np.array([
             [3, 4, 6, 7.2, 11, 14],
             [10, 7, 6, 7.5, 7, 6],
             [1, 2, 3, 3.5, 2, 1]
         ])
-        cpp=np.array([
-            [[1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8]],
-            [[20, 21, 22, 23], [17, 17, 17, 17], [14, 14, 14, 14], [11, 11, 11, 11]],
-            [[2, 5, 4, 3], [2, 6, 5, 5], [2, 6, 5, 4], [2, 3, 4, 3]],
-        ])
-        points = bezier.bezier_surface(cpp, 50, 50)
-        self.add_points(cpp.reshape(3, -1))
-        self.add_surface(points)
+        number_u = 50
+        number_v = 50
+        geometry = BezierCurve(cp, number_u, number_v)
+        self.geometries.append(geometry)
+        for actor in geometry.get_actors():
+            self.ren.AddActor(actor)
+        self.ren.Render()
+        self.reset_camera()
 
     def test_2(self):
         print("Test 2")
