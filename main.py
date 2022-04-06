@@ -236,9 +236,8 @@ class MainWindow(QMainWindow):
             np.meshgrid(np.arange(order+1), np.arange(order+1)) + [np.zeros((order+1,)*2)]
         )
         control_points = control_points.transpose((2, 0, 1))
-        surface = bezier.bezier_surface(control_points, number_u, number_v)
 
-        geometry = BezierSurface(control_points, surface, number_u, number_v)
+        geometry = BezierSurface(control_points, number_u, number_v)
         self.geometries.append(geometry)
         for actor in geometry.get_actors():
             self.ren.AddActor(actor)
@@ -312,7 +311,8 @@ class MainWindow(QMainWindow):
             self.field_y.value(),
             self.field_z.value(),
         ])
-        self.geometries[-1].update(point, (0, 0))
+        self.geometries[-1].cp[:, 0, 0] = point
+        self.geometries[-1].update(self.geometries[-1].cp)
         self.ren.Render()
         self.iren.Render()
 
@@ -337,12 +337,12 @@ class MainWindow(QMainWindow):
 
     def test_2(self):
         print("Test 2")
-        cpp=np.array([
+        cp=np.array([
             [[1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8]],
             [[20, 21, 22, 23], [17, 17, 17, 17], [14, 14, 14, 14], [11, 11, 11, 11]],
             [[2, 5, 4, 3], [2, 6, 5, 5], [2, 6, 5, 4], [2, 3, 4, 3]],
         ])
-        self.geometries[-1].regenerate(cpp, 10, 10)
+        self.geometries[-1].update(cp, 10, 10)
         self.ren.Render()
         self.iren.Render()
 
