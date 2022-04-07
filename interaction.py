@@ -2,6 +2,8 @@
 Mouse-click interactions with geometry.
 """
 
+import sys
+
 import vtk
 
 from colors import *
@@ -10,9 +12,13 @@ from colors import *
 class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     """A class that defines what happens when the mouse is clicked, released, and moved."""
 
+    # The number multiplied to mouse event positions. Used to fix incorrect values on macOS.
+    DISPLAY_SCALE = 0.5 if sys.platform == "darwin" else 1.0
+
     def __init__(self):
         # Create the picker object used to select geometry on the screen.
-        self.picker = vtk.vtkPropPicker()
+        # self.picker = vtk.vtkPropPicker()
+        self.picker = vtk.vtkPointPicker()
         # The previously picked actor and its property object. Used to restore appearances after an actor is no longer selected.
         self.previous_actor = None
         self.previous_property = vtk.vtkProperty()
@@ -27,8 +33,13 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         # Get the mouse location in display coordinates.
         position = self.GetInteractor().GetEventPosition()
         # Perform picking and get the picked actor if it was picked.
-        self.picker.Pick(position[0], position[1], 0, self.GetDefaultRenderer())
+        self.picker.Pick(
+            (position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0),
+            self.GetDefaultRenderer()
+        )
+        point = self.picker.GetPointId()
         actor = self.picker.GetActor()
+        print(point)
         self.GetInteractor().Render()
 
         # Run the default superclass function after custom behavior defined above.
@@ -43,10 +54,11 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     def mouse_move(self, obj, event):
         # Get the mouse location in display coordinates.
         position = self.GetInteractor().GetEventPosition()
-        # Fix the position by reduce each coordinate by half.
-        position = [_/2 for _ in position]
         # Perform picking and get the picked actor if it was picked.
-        self.picker.Pick(position[0], position[1], 0, self.GetDefaultRenderer())
+        self.picker.Pick(
+            (position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0),
+            self.GetDefaultRenderer()
+        )
         actor = self.picker.GetActor()
         # print(self.picker.GetPickPosition())
         self.HighlightProp(actor)
