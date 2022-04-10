@@ -76,12 +76,16 @@ class MainWindow(QMainWindow):
         layout.addWidget(button_surface)
         main_layout.addLayout(layout)
 
-        self.fields_cp = self._make_cp_fields()
+        self.fields_cp = self._make_fields_cp()
         self.fields_cp.setEnabled(False)
         main_layout.addWidget(self.fields_cp)
 
-        self.widget_bezier_surface = self._make_bezier_surface_fields()
-        main_layout.addWidget(self.widget_bezier_surface)
+        self.fields_number_cp = self._make_fields_number_cp()
+        self.fields_number_nodes = self._make_fields_number_nodes()
+        self.fields_number_cp.setEnabled(False)
+        self.fields_number_nodes.setEnabled(False)
+        main_layout.addWidget(self.fields_number_cp)
+        main_layout.addWidget(self.fields_number_nodes)
 
         button = QPushButton("Preset 1")
         button.clicked.connect(self.test_1)
@@ -103,7 +107,7 @@ class MainWindow(QMainWindow):
 
         return widget
     
-    def _make_cp_fields(self) -> QWidget:
+    def _make_fields_cp(self) -> QWidget:
         """Return a widget containing fields for modifying the current control point."""
         widget = QWidget()
         main_layout = QVBoxLayout(widget)
@@ -147,24 +151,8 @@ class MainWindow(QMainWindow):
 
         return widget
     
-    def _make_bezier_curve_fields(self) -> QWidget:
-        """Return a widget containing fields for modifying a Bezier curve."""
-        main_layout = QVBoxLayout()
-
-        widget = QWidget()
-        widget.setLayout(main_layout)
-        pass
-    
-    def _make_hermite_curve_fields(self) -> QWidget:
-        """Return a widget containing fields for modifying a Hermite curve."""
-        pass
-
-    def _make_bspline_curve_fields(self) -> QWidget:
-        """Return a widget containing fields for modifying a B-spline curve."""
-        pass
-    
-    def _make_bezier_surface_fields(self) -> QWidget:
-        """Return a widget containing fields for modifying a Bezier surface."""
+    def _make_fields_number_cp(self) -> QWidget:
+        """Return a widget containing fields for modifying the number of control points."""
         widget = QWidget()
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -186,6 +174,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.field_cp_v)
         main_layout.addLayout(layout)
 
+        return widget
+    
+    def _make_fields_number_nodes(self) -> QWidget:
+        """Return a widget containing fields for modifying the number of nodes."""
+        widget = QWidget()
+        main_layout = QVBoxLayout(widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
         layout = QHBoxLayout()
         self.field_nodes_u = QSpinBox()
         self.field_nodes_u.setMinimum(2)
@@ -206,6 +202,26 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(layout)
 
         return widget
+    
+    # def _make_bezier_curve_fields(self) -> QWidget:
+    #     """Return a widget containing fields for modifying a Bezier curve."""
+    #     main_layout = QVBoxLayout()
+
+    #     widget = QWidget()
+    #     widget.setLayout(main_layout)
+    #     pass
+    
+    # def _make_hermite_curve_fields(self) -> QWidget:
+    #     """Return a widget containing fields for modifying a Hermite curve."""
+    #     pass
+
+    # def _make_bspline_curve_fields(self) -> QWidget:
+    #     """Return a widget containing fields for modifying a B-spline curve."""
+    #     pass
+    
+    # def _make_bezier_surface_fields(self) -> QWidget:
+    #     """Return a widget containing fields for modifying a Bezier surface."""
+    #     pass
 
     # def _make_plot(self) -> QWidget:
     #     """Return a plot widget."""
@@ -300,8 +316,8 @@ class MainWindow(QMainWindow):
             i, j = self.selected_geometry.get_point_indices(self.selected_point)
             self.selected_geometry.cp[:, i, j] = point
             self.selected_geometry.update(self.selected_geometry.cp)
-        self.ren.Render()
-        self.iren.Render()
+            self.ren.Render()
+            self.iren.Render()
 
     def update_nodes(self) -> None:
         """Update the current geometry using the values in the relevant fields."""
@@ -310,11 +326,21 @@ class MainWindow(QMainWindow):
                 number_u=self.field_nodes_u.value(),
                 number_v=self.field_nodes_v.value(),
             )
+            self.ren.Render()
+            self.iren.Render()
 
     def remove_current(self) -> None:
         """Remove the currently selected curve or surface."""
-        # if self.selected_geometry is not None:
-        #     self.iren.GetInteractorStyle().remove_to_pick_list(self.selected_geometry)
+        if self.selected_geometry:
+            self.iren.GetInteractorStyle().remove_from_pick_list(self.selected_geometry)
+            for actor in self.selected_geometry.get_actors():
+                self.ren.RemoveActor(actor)
+            del self.geometries[self.geometries.index(self.selected_geometry)]
+            self.selected_geometry = None
+            self.selected_point = None
+
+            self.ren.Render()
+            self.iren.Render()
 
     def load_geometry(self, actor: vtk.vtkActor, point_id: int = None) -> None:
         """Populate the fields in the GUI with the information of the selected geometry. Called by the visualizer when the user selects geometry."""
@@ -322,7 +348,8 @@ class MainWindow(QMainWindow):
             self.selected_geometry = None
             self.selected_point = None
             self.fields_cp.setEnabled(False)
-            self.fields_cp.setEnabled(False)
+            self.fields_number_cp.setEnabled(False)
+            self.fields_number_nodes.setEnabled(False)
         else:
             # Search for the Geometry object that the given actor corresponds to.
             for geometry in self.geometries:
@@ -352,6 +379,9 @@ class MainWindow(QMainWindow):
                         self.fields_cp.setEnabled(False)
                     
                     self.selected_geometry = geometry
+
+                    self.fields_number_cp.setEnabled(True)
+                    self.fields_number_nodes.setEnabled(True)
 
                     self.field_cp_u.blockSignals(True)
                     self.field_cp_v.blockSignals(True)
