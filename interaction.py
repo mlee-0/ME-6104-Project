@@ -15,10 +15,18 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     # The number multiplied to mouse event positions to fix incorrect values on macOS.
     DISPLAY_SCALE = 0.5 if sys.platform == "darwin" else 1.0
 
-    def __init__(self):
-        # Create the picker objects used to select geometry on the screen.
+    def __init__(self, gui):
+        self.gui = gui
+
+        # Create the picker objects used to select geometry on the screen. A vtkPropPicker selects nodes actors, and a vtkPointPicker selects a single point on control points actors.
         self.prop_picker = vtk.vtkPropPicker()
         self.point_picker = vtk.vtkPointPicker()
+        # Initialize the list of actors from which each picker picks from. This allows the prop picker to only pick nodes actors and the point picker to only pick control point actors. Actors must be added to these lists when they are created.
+        self.prop_picker.InitializePickList()
+        self.point_picker.InitializePickList()
+        self.prop_picker.SetPickFromList(True)
+        self.point_picker.SetPickFromList(True)
+
         # The previously picked objects. Used to restore appearances after an actor is no longer selected.
         self.previous_nodes_actor = None
         self.previous_property = vtk.vtkProperty()
@@ -31,43 +39,55 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.AddObserver("LeftButtonReleaseEvent", self.left_mouse_release)
         self.AddObserver("MouseMoveEvent", self.mouse_move)
     
+    def add_to_pick_list(self, geometry):
+        """Add the actors associated with the Geometry object to their corresponding pickers."""
+        actor_cp, actor_nodes = geometry.get_actors()
+        self.prop_picker.AddPickList(actor_nodes)
+        self.point_picker.AddPickList(actor_cp)
+    
+    def remove_from_pick_list(self, geometry):
+        """Remove the actors associated with the Geometry object from their corresponding pickers."""
+        actor_cp, actor_nodes = geometry.get_actors()
+        self.prop_picker.DeletePickList(actor_nodes)
+        self.point_picker.DeletePickList(actor_cp)
+
     def left_mouse_press(self, obj, event):
-        # Get the mouse location in display coordinates.
-        position = self.GetInteractor().GetEventPosition()
-        # Perform picking and get the picked actor if it was picked.
-        self.point_picker.Pick(
-            position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0, self.GetDefaultRenderer()
-        )
-        point = self.point_picker.GetPointId()
-        actor = self.point_picker.GetActor()
-        print(point, type(point))
+        self.pick()
+
+        # point = self.point_picker.GetPointId()
+        # actor = self.point_picker.GetActor()
+        # print(point, type(point))
         self.GetInteractor().Render()
 
         # Run the default superclass function after custom behavior defined above.
         self.OnLeftButtonDown()
 
     def left_mouse_release(self, obj, event):
-        pass
+        self.pick()
 
+        point = self.point_picker.GetPointId()
+        actor_cp = self.point_picker.GetActor()
+        actor_nodes = self.prop_picker.GetActor()
+        # A control point was selected.
+        if point >= 0:
+            self.gui.load_geometry(actor_cp, point)
+        # A nodes actor was selected.
+        elif actor_nodes is not None:
+            self.gui.load_geometry(actor_nodes)
+        # No actor was selected.
+        else:
+            self.gui.load_geometry(None)
+        
         # Run the default superclass function after custom behavior defined above.
         self.OnLeftButtonUp()
 
     def mouse_move(self, obj, event):
-        # Get the mouse location in display coordinates.
-        position = self.GetInteractor().GetEventPosition()
-        
-        # Perform picking and highlight the picked point.
-        self.point_picker.Pick(
-            position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0, self.GetDefaultRenderer()
-        )
+        self.pick()
+
         actor = self.point_picker.GetActor()
         point = self.point_picker.GetPointId()
         self.highlight_point(actor, point)
         
-        # Perform picking and highlight the picked actor.
-        self.prop_picker.Pick(
-            position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0, self.GetDefaultRenderer()
-        )
         actor = self.prop_picker.GetActor()
         self.highlight_actor(actor)
 
@@ -77,15 +97,23 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         # Run the default superclass function after custom behavior defined above.
         self.OnMouseMove()
     
+    def pick(self) -> None:
+        """Perform picking where a mouse event last occurred."""
+        # Get the mouse location in display coordinates.
+        position = self.GetInteractor().GetEventPosition()
+        # Perform picking.
+        self.point_picker.Pick(
+            position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0, self.GetDefaultRenderer()
+        )
+        self.prop_picker.Pick(
+            position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0, self.GetDefaultRenderer()
+        )
+
     def highlight_actor(self, actor: vtk.vtkProp) -> None:
-        """Highlight the selected actor only if it is a nodes actor."""
+        """Highlight the selected nodes actor."""
         # Restore the original appearance of the previously selected actor.
         if self.previous_nodes_actor is not None:
             self.previous_nodes_actor.GetProperty().DeepCopy(self.previous_property)
-        
-        # Ignore this actor if it is not a nodes actor.
-        if actor and not isinstance(actor.GetMapper().GetInput(), vtk.vtkStructuredGrid):
-            actor = None
         
         # Highlight the actor, if one was selected.
         if actor:
@@ -98,15 +126,11 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.previous_nodes_actor = actor
     
     def highlight_point(self, actor: vtk.vtkProp, point: int) -> None:
-        """Highlight only the selected point on the actor only if it is a control points actor."""
+        """Highlight only the selected point on the control points actor."""
         # Restore the original color of the previously selected point.
         if self.previous_cp_actor is not None and self.previous_point is not None:
             self.previous_cp_actor.GetMapper().GetInput().GetCellData().GetScalars().SetTuple(self.previous_point, self.previous_point_color)
             self.previous_cp_actor.GetMapper().GetInput().Modified()
-        
-        # Ignore this actor if it is not a control points actor.
-        if actor and not isinstance(actor.GetMapper().GetInput(), vtk.vtkPolyData):
-            actor, point = None, -1
         
         # Highlight the point, if one was selected.
         if actor:

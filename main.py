@@ -28,8 +28,9 @@ class MainWindow(QMainWindow):
 
         # List containing all curves and surfaces.
         self.geometries = []
-        # The currently selected geometry.
-        self.geometry_selected = None
+        # The currently selected Geometry object and point ID.
+        self.selected_geometry = None
+        self.selected_point = None
 
         # Create the overall layout of the window.
         layout = QHBoxLayout()
@@ -75,6 +76,39 @@ class MainWindow(QMainWindow):
         layout.addWidget(button_surface)
         main_layout.addLayout(layout)
 
+        self.fields_cp = self._make_cp_fields()
+        self.fields_cp.setEnabled(False)
+        main_layout.addWidget(self.fields_cp)
+
+        self.widget_bezier_surface = self._make_bezier_surface_fields()
+        main_layout.addWidget(self.widget_bezier_surface)
+
+        button = QPushButton("Preset 1")
+        button.clicked.connect(self.test_1)
+        main_layout.addWidget(button)
+        button = QPushButton("Preset 2")
+        button.clicked.connect(self.test_2)
+        main_layout.addWidget(button)
+
+        button = QPushButton("Reset Camera")
+        button.clicked.connect(self.reset_camera)
+        main_layout.addWidget(button)
+
+        button = QPushButton("Delete")
+        button.clicked.connect(self.remove_current)
+        main_layout.addWidget(button)
+
+        widget = QWidget()
+        widget.setLayout(main_layout)
+
+        return widget
+    
+    def _make_cp_fields(self) -> QWidget:
+        """Return a widget containing fields for modifying the current control point."""
+        widget = QWidget()
+        main_layout = QVBoxLayout(widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
         self.field_x = QDoubleSpinBox()
         self.field_x.setMaximum(100)
         self.field_x.setMinimum(-100)
@@ -110,27 +144,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("Z"))
         layout.addWidget(self.field_z)
         main_layout.addLayout(layout)
-
-        self.widget_bezier_surface = self._make_bezier_surface_fields()
-        main_layout.addWidget(self.widget_bezier_surface)
-
-        button = QPushButton("Preset 1")
-        button.clicked.connect(self.test_1)
-        main_layout.addWidget(button)
-        button = QPushButton("Preset 2")
-        button.clicked.connect(self.test_2)
-        main_layout.addWidget(button)
-
-        button = QPushButton("Reset Camera")
-        button.clicked.connect(self.reset_camera)
-        main_layout.addWidget(button)
-
-        button = QPushButton("Delete")
-        button.clicked.connect(self.remove_current)
-        main_layout.addWidget(button)
-
-        widget = QWidget()
-        widget.setLayout(main_layout)
 
         return widget
     
@@ -178,10 +191,12 @@ class MainWindow(QMainWindow):
         self.field_nodes_u.setMinimum(2)
         self.field_nodes_u.setMaximum(100)
         self.field_nodes_u.setAlignment(Qt.AlignRight)
+        self.field_nodes_u.valueChanged.connect(self.update_nodes)
         self.field_nodes_v = QSpinBox()
         self.field_nodes_v.setMinimum(2)
         self.field_nodes_v.setMaximum(100)
         self.field_nodes_v.setAlignment(Qt.AlignRight)
+        self.field_nodes_v.valueChanged.connect(self.update_nodes)
         layout.addWidget(QLabel("Nodes:"))
         layout.addStretch(1)
         layout.addWidget(QLabel("u"))
@@ -227,7 +242,7 @@ class MainWindow(QMainWindow):
         self.renwin.AddRenderer(self.ren)
         self.iren = self.renwin.GetInteractor()
         
-        style = InteractorStyle()
+        style = InteractorStyle(self)
         style.SetDefaultRenderer(self.ren)
         self.iren.SetInteractorStyle(style)
 
@@ -265,6 +280,8 @@ class MainWindow(QMainWindow):
         for actor in geometry.get_actors():
             self.ren.AddActor(actor)
         
+        self.iren.GetInteractorStyle().add_to_pick_list(geometry)
+        
         self.ren.Render()
         self.reset_camera()
 
@@ -272,20 +289,85 @@ class MainWindow(QMainWindow):
         """Add a preset Hermite surface to the visualizer."""
         pass
     
-    def update_control_point(self):
+    def update_control_point(self) -> None:
+        """Update the current geometry using the values in the control point fields."""
         point = np.array([
             self.field_x.value(),
             self.field_y.value(),
             self.field_z.value(),
         ])
-        self.geometries[-1].cp[:, 0, 0] = point
-        self.geometries[-1].update(self.geometries[-1].cp)
+        if self.selected_geometry is not None:
+            i, j = self.selected_geometry.get_point_indices(self.selected_point)
+            self.selected_geometry.cp[:, i, j] = point
+            self.selected_geometry.update(self.selected_geometry.cp)
         self.ren.Render()
         self.iren.Render()
 
+    def update_nodes(self) -> None:
+        """Update the current geometry using the values in the relevant fields."""
+        if self.selected_geometry is not None:
+            self.selected_geometry.update(
+                number_u=self.field_nodes_u.value(),
+                number_v=self.field_nodes_v.value(),
+            )
+
     def remove_current(self) -> None:
         """Remove the currently selected curve or surface."""
-        pass
+        # if self.selected_geometry is not None:
+        #     self.iren.GetInteractorStyle().remove_to_pick_list(self.selected_geometry)
+
+    def load_geometry(self, actor: vtk.vtkActor, point_id: int = None) -> None:
+        """Populate the fields in the GUI with the information of the selected geometry. Called by the visualizer when the user selects geometry."""
+        if actor is None:
+            self.selected_geometry = None
+            self.selected_point = None
+            self.fields_cp.setEnabled(False)
+            self.fields_cp.setEnabled(False)
+        else:
+            # Search for the Geometry object that the given actor corresponds to.
+            for geometry in self.geometries:
+                actors = geometry.get_actors()
+                if actor not in actors:
+                    continue
+                # The Geometry object is found.
+                else:
+                    actor_cp = actors[0]
+                    point = None
+                    if actor is actor_cp:
+                        assert point_id is not None
+                        point = geometry.get_point(point_id)
+                        self.selected_point = point_id
+                        self.field_x.blockSignals(True)
+                        self.field_y.blockSignals(True)
+                        self.field_z.blockSignals(True)
+                        self.field_x.setValue(point[0])
+                        self.field_y.setValue(point[1])
+                        self.field_z.setValue(point[2])
+                        self.fields_cp.setEnabled(True)
+                        self.field_x.blockSignals(False)
+                        self.field_y.blockSignals(False)
+                        self.field_z.blockSignals(False)
+                    else:
+                        self.selected_point = None
+                        self.fields_cp.setEnabled(False)
+                    
+                    self.selected_geometry = geometry
+
+                    self.field_cp_u.blockSignals(True)
+                    self.field_cp_v.blockSignals(True)
+                    self.field_cp_u.setValue(self.selected_geometry.get_number_cp_u())
+                    self.field_cp_v.setValue(self.selected_geometry.get_number_cp_v())
+                    self.field_cp_u.blockSignals(False)
+                    self.field_cp_v.blockSignals(False)
+
+                    self.field_nodes_u.blockSignals(True)
+                    self.field_nodes_v.blockSignals(True)
+                    self.field_nodes_u.setValue(self.selected_geometry.number_u)
+                    self.field_nodes_v.setValue(self.selected_geometry.number_v)
+                    self.field_nodes_u.blockSignals(False)
+                    self.field_nodes_v.blockSignals(False)
+
+                    break
 
     def test_1(self):
         print("Test 2")

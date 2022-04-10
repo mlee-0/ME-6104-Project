@@ -38,7 +38,7 @@ class Geometry(ABC):
         self.vertices_cp = vtk.vtkCellArray()
         # Objects used to store objects that store points.
         self.data_cp = vtk.vtkPolyData()
-        self.data_surface = vtk.vtkStructuredGrid()
+        self.data_nodes = vtk.vtkStructuredGrid()
 
         # Add data to the objects.
         self.reset_data()
@@ -50,18 +50,18 @@ class Geometry(ABC):
         source.SetRadius(0.1)
         mapper_cp.SetSourceConnection(source.GetOutputPort())
 
-        mapper_surface = vtk.vtkDataSetMapper()
-        mapper_surface.SetInputData(self.data_surface)
+        mapper_nodes = vtk.vtkDataSetMapper()
+        mapper_nodes.SetInputData(self.data_nodes)
 
         # Create actors used to display geometry.
         self.actor_cp = vtk.vtkActor()
         self.actor_cp.SetMapper(mapper_cp)
 
-        self.actor_surface = vtk.vtkActor()
-        self.actor_surface.SetMapper(mapper_surface)
-        self.actor_surface.GetProperty().SetColor(WHITE)
-        self.actor_surface.GetProperty().SetVertexVisibility(False)
-        self.actor_surface.GetProperty().SetEdgeVisibility(True)
+        self.actor_nodes = vtk.vtkActor()
+        self.actor_nodes.SetMapper(mapper_nodes)
+        self.actor_nodes.GetProperty().SetColor(WHITE)
+        self.actor_nodes.GetProperty().SetVertexVisibility(False)
+        self.actor_nodes.GetProperty().SetEdgeVisibility(True)
     
     @abstractmethod
     def update(self) -> None:
@@ -95,11 +95,11 @@ class Geometry(ABC):
                 self.points_nodes.SetPoint(self.ids_nodes[k], self.nodes[:, i, j])
                 k += 1
         self.points_nodes.Modified()
-        self.actor_surface.GetMapper().Update()
+        self.actor_nodes.GetMapper().Update()
     
     def reset_data(self) -> None:
         """Create new objects used to store point data. Used when changing the number of control points or nodes, which requires new vtkPoints objects to be created."""
-        
+
         del self.points_cp, self.points_nodes, self.vertices_cp
 
         # Initialize objects.
@@ -126,8 +126,8 @@ class Geometry(ABC):
                 self.ids_nodes.append(
                     self.points_nodes.InsertNextPoint(self.nodes[:, i, j])
                 )
-        self.data_surface.SetDimensions(self.nodes.shape[1], self.nodes.shape[2], 1)
-        self.data_surface.SetPoints(self.points_nodes)
+        self.data_nodes.SetDimensions(self.nodes.shape[1], self.nodes.shape[2], 1)
+        self.data_nodes.SetPoints(self.points_nodes)
 
         # Add an array of colors to control point data. Allows one control point to have a different color from the rest when it is selected.
         colors = vtk.vtkUnsignedCharArray()
@@ -137,9 +137,27 @@ class Geometry(ABC):
         self.data_cp.GetCellData().SetScalars(colors)
         self.data_cp.Modified()
 
+    def get_point_indices(self, point_id: int) -> Tuple[int, int]:
+        """Return a tuple of indices to the control points array corresponding to the specified point ID. Each point's point ID is assumed to start from 0 and be numbered based on the order it was added."""
+        assert point_id >= 0
+        return point_id // self.cp.shape[1], point_id % self.cp.shape[2]
+    
+    def get_point(self, point_id: int) -> np.ndarray:
+        """Return an array of the control point corresponding to the specified point ID."""
+        indices = self.get_point_indices(point_id)
+        return self.cp[:, indices[0], indices[1]]
+    
+    def get_number_cp_u(self) -> int:
+        """Return the number of control points along u."""
+        return self.cp.shape[1]
+    
+    def get_number_cp_v(self) -> int:
+        """Return the number of control points along v."""
+        return self.cp.shape[2]
+
     def get_actors(self) -> Tuple[vtk.vtkActor]:
         """Return a tuple of all actors associated with this geometry."""
-        return self.actor_cp, self.actor_surface
+        return self.actor_cp, self.actor_nodes
 
 # class Curve(Geometry):
 #     def __init__(self, *args, **kwargs):
