@@ -12,7 +12,7 @@ from colors import *
 class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     """A class that defines what happens when the mouse is clicked, released, and moved."""
 
-    # The number multiplied to mouse event positions to fix incorrect values on macOS.
+    # The number multiplied to mouse event positions to fix incorrect values. On macOS, mouse event positions are twice the expected values.
     DISPLAY_SCALE = 0.5 if sys.platform == "darwin" else 1.0
 
     def __init__(self, gui):

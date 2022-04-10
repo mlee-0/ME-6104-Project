@@ -398,6 +398,7 @@ class MainWindow(QMainWindow):
                         self.fields_cp.setEnabled(False)
                     
                     self.selected_geometry = geometry
+                    print(f"Selected {geometry}")
 
                     self.fields_number_cp.setEnabled(True)
                     self.fields_number_nodes.setEnabled(True)

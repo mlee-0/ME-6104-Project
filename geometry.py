@@ -20,6 +20,9 @@ class Geometry(ABC):
     HERMITE = "Hermite"
     BSPLINE = "B-Spline"
 
+    # The number of instances of the class, incremented each time a new instance is created.
+    instances = 0
+
     def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None):
         self.cp = cp
         self.number_u = number_u
@@ -27,6 +30,10 @@ class Geometry(ABC):
         # Calculate nodes and the order.
         self.nodes = self.calculate(self.cp, self.number_u, self.number_v)
         self.order = self.calculate_order(self.cp)
+
+        # Set the instance number, used to differentiate between different instances of the same type of geometry on the GUI.
+        self.increment_instances()
+        self.instance = self.instances
 
         # Objects used to store coordinate point data.
         self.points_cp = vtk.vtkPoints()
@@ -63,6 +70,10 @@ class Geometry(ABC):
         self.actor_nodes.GetProperty().SetVertexVisibility(False)
         self.actor_nodes.GetProperty().SetEdgeVisibility(True)
     
+    @classmethod
+    def increment_instances(cls):
+        cls.instances += 1
+
     @abstractmethod
     def update(self) -> None:
         """Recalculate the geometry if the user modified information in the GUI."""
@@ -165,35 +176,6 @@ class Geometry(ABC):
         """Return a tuple of all actors associated with this geometry."""
         return self.actor_cp, self.actor_nodes
 
-# class Curve(Geometry):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-
-#         vertices = vtk.vtkCellArray()
-#         for i in range(self.cp.shape[1]):
-#             id_point = self.points_cp.InsertNextPoint(self.cp[:, i])
-#             vertices.InsertNextCell(1)
-#             vertices.InsertCellPoint(id_point)
-        
-#         pass  # Add points_nodes here
-        
-#         self.data = vtk.vtkPolyData()
-#         self.data.SetPoints(self.points_cp)
-#         self.data.SetVerts(vertices)
-#         self.mapper = vtk.vtkDataSetMapper()
-#         self.mapper.SetInputData(self.data)
-
-#         self.actor = vtk.vtkActor()
-#         self.actor.SetMapper(self.mapper)
-#         self.actor.GetProperty().SetPointSize(10)
-#         self.actor.GetProperty().SetColor(BLUE)
-#         self.actor.GetProperty().SetVertexVisibility(True)
-#         self.actor.GetProperty().SetEdgeVisibility(False)
-
-# class Surface(Geometry):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-    
 class BezierCurve(Geometry):
     def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None):
         # Whether the number of points has changed.
@@ -226,6 +208,9 @@ class BezierCurve(Geometry):
     @staticmethod
     def calculate_order(cp: np.ndarray) -> int:
         return cp.shape[1] - 1
+    
+    def __repr__(self) -> str:
+        return f"Bezier curve #{self.instance}, order {self.order}"
 
 class HermiteCurve(Geometry):
     pass
@@ -262,6 +247,9 @@ class BezierSurface(Geometry):
     @staticmethod
     def calculate_order(cp: np.ndarray) -> Tuple[int, int]:
         return (cp.shape[1] - 1, cp.shape[2] - 1)
+    
+    def __repr__(self) -> str:
+        return f"Bezier surface #{self.instance}, order {self.order}"
 
 
 class HermiteSurface(Geometry):
@@ -276,3 +264,6 @@ class HermiteSurface(Geometry):
     @staticmethod
     def calculate_order(cp: np.ndarray):
         return 3
+    
+    def __repr__(self) -> str:
+        return f"Hermite surface #{self.instance}"
