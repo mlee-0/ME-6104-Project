@@ -56,7 +56,6 @@ class Geometry(ABC):
         # Create actors used to display geometry.
         self.actor_cp = vtk.vtkActor()
         self.actor_cp.SetMapper(mapper_cp)
-        self.actor_cp.GetProperty().SetColor(BLUE)
 
         self.actor_surface = vtk.vtkActor()
         self.actor_surface.SetMapper(mapper_surface)
@@ -130,6 +129,13 @@ class Geometry(ABC):
         self.data_surface.SetDimensions(self.nodes.shape[1], self.nodes.shape[2], 1)
         self.data_surface.SetPoints(self.points_nodes)
 
+        # Add an array of colors to control point data. Allows one control point to have a different color from the rest when it is selected.
+        colors = vtk.vtkUnsignedCharArray()
+        colors.SetNumberOfComponents(3)
+        for tuple_id in self.ids_cp:
+            colors.InsertTuple(tuple_id, [_*255 for _ in BLUE])
+        self.data_cp.GetCellData().SetScalars(colors)
+        self.data_cp.Modified()
 
     def get_actors(self) -> Tuple[vtk.vtkActor]:
         """Return a tuple of all actors associated with this geometry."""
