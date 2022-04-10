@@ -13,7 +13,7 @@ def bezier_curve(cp, num):
     M = np.array([bernstein_poly(u, k, n) for k in range(0, n+1)]).transpose()
     points = M @ cp.transpose()
 
-    return points
+    return points.transpose()
 
 def bezier_surface(cpp, num_u, num_v):
     u = np.linspace(0, 1, num_u)

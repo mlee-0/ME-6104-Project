@@ -270,7 +270,25 @@ class MainWindow(QMainWindow):
 
     def add_bezier_curve(self) -> None:
         """Add a preset Bezier curve to the visualizer."""
-        pass
+        order = 2
+        number_u = 10
+
+        control_points = np.vstack((
+            np.arange(order+1),  # x-coordinates
+            np.arange(order+1),  # y-coordinates
+            np.zeros(order+1),  # z-coordinates
+        ))
+        control_points = np.expand_dims(control_points, 2)
+
+        geometry = BezierCurve(control_points, number_u)
+        self.geometries.append(geometry)
+        for actor in geometry.get_actors():
+            self.ren.AddActor(actor)
+        
+        self.iren.GetInteractorStyle().add_to_pick_list(geometry)
+        
+        self.ren.Render()
+        self.reset_camera()
 
     def add_hermite_curve(self) -> None:
         """Add a preset Hermite curve to the visualizer."""
@@ -358,6 +376,7 @@ class MainWindow(QMainWindow):
                     continue
                 # The Geometry object is found.
                 else:
+                    is_surface = type(geometry) in [BezierSurface, HermiteSurface]
                     actor_cp = actors[0]
                     point = None
                     if actor is actor_cp:
@@ -382,18 +401,22 @@ class MainWindow(QMainWindow):
 
                     self.fields_number_cp.setEnabled(True)
                     self.fields_number_nodes.setEnabled(True)
+                    self.field_cp_v.setEnabled(is_surface)
+                    self.field_nodes_v.setEnabled(is_surface)
 
                     self.field_cp_u.blockSignals(True)
                     self.field_cp_v.blockSignals(True)
                     self.field_cp_u.setValue(self.selected_geometry.get_number_cp_u())
-                    self.field_cp_v.setValue(self.selected_geometry.get_number_cp_v())
+                    if is_surface:
+                        self.field_cp_v.setValue(self.selected_geometry.get_number_cp_v())
                     self.field_cp_u.blockSignals(False)
                     self.field_cp_v.blockSignals(False)
 
                     self.field_nodes_u.blockSignals(True)
                     self.field_nodes_v.blockSignals(True)
                     self.field_nodes_u.setValue(self.selected_geometry.number_u)
-                    self.field_nodes_v.setValue(self.selected_geometry.number_v)
+                    if is_surface:
+                        self.field_nodes_v.setValue(self.selected_geometry.number_v)
                     self.field_nodes_u.blockSignals(False)
                     self.field_nodes_v.blockSignals(False)
 

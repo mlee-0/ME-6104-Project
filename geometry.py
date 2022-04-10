@@ -140,7 +140,13 @@ class Geometry(ABC):
     def get_point_indices(self, point_id: int) -> Tuple[int, int]:
         """Return a tuple of indices to the control points array corresponding to the specified point ID. Each point's point ID is assumed to start from 0 and be numbered based on the order it was added."""
         assert point_id >= 0
-        return point_id // self.cp.shape[1], point_id % self.cp.shape[2]
+        assert 1 not in self.cp.shape[0:2], "The control points array for a curve must have size 3-n-1."
+        # This geometry is a curve.
+        if 1 in self.cp.shape[1:3]:
+            return point_id, 0
+        # This geometry is a surface.
+        else:
+            return point_id // self.cp.shape[1], point_id % self.cp.shape[2]
     
     def get_point(self, point_id: int) -> np.ndarray:
         """Return an array of the control point corresponding to the specified point ID."""
@@ -189,7 +195,37 @@ class Geometry(ABC):
 #         super().__init__(*args, **kwargs)
     
 class BezierCurve(Geometry):
-    pass
+    def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None):
+        # Whether the number of points has changed.
+        requires_reset = (
+            number_u is not None and number_u != self.number_u or
+            number_v is not None and number_v != self.number_v or
+            cp is not None and cp.shape != self.cp.shape
+        )
+
+        # Store any given inputs.
+        if cp is not None:
+            self.cp = cp
+        if number_u is not None:
+            self.number_u = number_u
+        if number_v is not None:
+            self.number_v = number_v
+        
+        # Calculate nodes and the order.
+        self.nodes = self.calculate(self.cp, self.number_u, self.number_v)
+        self.order = self.calculate_order(self.cp)
+        if requires_reset:
+            self.reset_data()
+        else:
+            self.update_data()
+
+    @staticmethod
+    def calculate(cp: np.ndarray, number_u: int, number_v: int):
+        return bezier.bezier_curve(cp, number_u)
+    
+    @staticmethod
+    def calculate_order(cp: np.ndarray) -> int:
+        return cp.shape[1] - 1
 
 class HermiteCurve(Geometry):
     pass

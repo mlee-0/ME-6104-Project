@@ -54,9 +54,6 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     def left_mouse_press(self, obj, event):
         self.pick()
 
-        # point = self.point_picker.GetPointId()
-        # actor = self.point_picker.GetActor()
-        # print(point, type(point))
         self.GetInteractor().Render()
 
         # Run the default superclass function after custom behavior defined above.
