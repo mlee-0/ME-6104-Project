@@ -341,12 +341,8 @@ class MainWindow(QMainWindow):
     def update_number_cp(self) -> None:
         """Update the number of control points in the current geometry."""
         if self.selected_geometry is not None:
-            try:
-                cp = self.selected_geometry.change_number_cp(self.field_cp_u.value(), self.field_cp_v.value())
-            except AttributeError:
-                return
-            else:
-                self.selected_geometry.update(cp)
+            cp = self.selected_geometry.change_number_cp(self.field_cp_u.value(), self.field_cp_v.value())
+            self.selected_geometry.update(cp)
             self.ren.Render()
             self.iren.Render()
     

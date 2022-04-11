@@ -149,6 +149,10 @@ class Geometry(ABC):
         self.data_cp.GetCellData().SetScalars(colors)
         self.data_cp.Modified()
 
+    def change_number_cp(self):
+        """Return a new control points array with a different number of control points, or return None if the number of control points cannot be changed."""
+        return None
+    
     def get_point_indices(self, point_id: int) -> Tuple[int, int]:
         """Return a tuple of indices to the control points array corresponding to the specified point ID. Each point's point ID is assumed to start from 0 and be numbered based on the order it was added."""
         assert point_id >= 0
@@ -207,12 +211,23 @@ class BezierCurve(Geometry):
             self.update_data()
 
     @staticmethod
-    def calculate(cp: np.ndarray, number_u: int, number_v: int):
+    def calculate(cp: np.ndarray, number_u: int, _):
         return bezier.bezier_curve(cp, number_u)
     
     @staticmethod
     def calculate_order(cp: np.ndarray) -> int:
         return cp.shape[1] - 1
+    
+    def change_number_cp(self, number_u: int, _) -> np.ndarray:
+        """Return a new control points array with a different number of control points using interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
+        cp = np.empty((3, number_u, 1))
+        for i in range(3):
+            cp[i, :, 0] = np.interp(
+                np.linspace(0, 1, number_u),
+                np.linspace(0, 1, self.cp.shape[1]),
+                self.cp[i, :, 0],
+                )
+        return cp
     
     def __repr__(self) -> str:
         return f"{self.BEZIER} curve #{self.instance}, order {self.order}"
@@ -268,36 +283,6 @@ class BezierSurface(Geometry):
                 np.linspace(0, 1, number_u),
             )
         return cp
-
-        # print(number_u, number_v)
-        # array_1 = np.empty((self.cp.shape[0], self.cp.shape[1], number_v))
-        # if number_u != self.cp.shape[1]:
-        #     for i in range(array_1.shape[1]):
-        #         for xyz in range(3):
-        #             print(np.linspace(0, self.cp.shape[2]-1, number_v))
-        #             print(np.arange(self.cp.shape[2]))
-        #             print()
-        #             array_1[xyz, i, :] = np.interp(
-        #                 np.linspace(0, 1, number_v),
-        #                 np.linspace(0, 1, self.cp.shape[2]),
-        #                 self.cp[xyz, i, :],
-        #             )
-        # else:
-        #     array_1 = self.cp.copy()
-        
-        # array_2 = np.empty((self.cp.shape[0], number_u, number_v))
-        # if number_v != self.cp.shape[2]:
-        #     for j in range(array_2.shape[2]):
-        #         for xyz in range(3):
-        #             array_2[xyz, :, j] = np.interp(
-        #                 np.linspace(0, 1, number_u),
-        #                 np.linspace(0, 1, self.cp.shape[1]),
-        #                 array_1[xyz, :, j],
-        #             )
-        # else:
-        #     array_2 = array_1
-        
-        # return array_2
     
     def __repr__(self) -> str:
         return f"{self.BEZIER} surface #{self.instance}, order {self.order}"
