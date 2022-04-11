@@ -21,7 +21,7 @@ class Geometry(ABC):
     HERMITE = "Hermite"
     BSPLINE = "B-Spline"
 
-    # The number of instances of the class, incremented each time a new instance is created.
+    # The number of instances of the class, incremented each time a new instance is created. Each subclass inherits this variable and increments it independently of other subclasses.
     instances = 0
 
     def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None):

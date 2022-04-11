@@ -13,7 +13,7 @@ import numpy as np
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
 
@@ -32,8 +32,10 @@ class MainWindow(QMainWindow):
         self.selected_point = None
 
         # Create the overall layout of the window.
-        layout = QHBoxLayout()
+        layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setColumnStretch(0, 0)
+        layout.setColumnStretch(1, 1)
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
@@ -41,10 +43,12 @@ class MainWindow(QMainWindow):
         # Add widgets to the layout.
         self.sidebar = self._make_sidebar()
         # self.plot = self._make_plot()
-        self.visualizer = self._make_visualizer()
-        layout.addWidget(self.sidebar, stretch=0)
+        visualizer = self._make_visualizer()
+        widget_camera_controls = self._make_widget_camera_controls()
+        layout.addWidget(self.sidebar, 0, 0, 2, 1)
         # layout.addWidget(self.plot)
-        layout.addWidget(self.visualizer, stretch=1)
+        layout.addWidget(visualizer, 0, 1)
+        layout.addWidget(widget_camera_controls, 1, 1)
 
         # Start the interactor after the layout is created.
         self.iren.Initialize()
@@ -86,16 +90,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.fields_number_cp)
         main_layout.addWidget(self.fields_number_nodes)
 
-        button = QPushButton("Preset 1")
-        button.clicked.connect(self.test_1)
-        main_layout.addWidget(button)
-        button = QPushButton("Preset 2")
-        button.clicked.connect(self.test_2)
-        main_layout.addWidget(button)
-
-        button = QPushButton("Reset Camera")
-        button.clicked.connect(self.reset_camera)
-        main_layout.addWidget(button)
+        main_layout.addStretch(1)
 
         button = QPushButton("Delete")
         button.clicked.connect(self.remove_current)
@@ -265,6 +260,43 @@ class MainWindow(QMainWindow):
 
         return widget
     
+    def _make_widget_camera_controls(self) -> QWidget:
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        button = QPushButton("Top View")
+        button.clicked.connect(self.set_camera_top)
+        layout.addWidget(button)
+
+        button = QPushButton("Front View")
+        button.clicked.connect(self.set_camera_front)
+        layout.addWidget(button)
+
+        button = QPushButton("Fit")
+        button.clicked.connect(self.reset_camera)
+        layout.addWidget(button)
+
+        layout.addStretch(1)
+
+        return widget
+    
+    def set_camera_top(self) -> None:
+        """Set the camera to look down along the Z direction."""
+        camera = self.ren.GetActiveCamera()
+        camera.SetViewUp(0, 1, 0)
+        x, y, z = camera.GetPosition()
+        camera.SetFocalPoint(x, y, z-1)
+        self.reset_camera()
+    
+    def set_camera_front(self) -> None:
+        """Set the camera to look forward along the Y direction."""
+        camera = self.ren.GetActiveCamera()
+        camera.SetViewUp(0, 0, 1)
+        x, y, z = camera.GetPosition()
+        camera.SetFocalPoint(x, y+1, z)
+        self.reset_camera()
+    
     def reset_camera(self) -> None:
         self.ren.ResetCamera()
         self.iren.Render()
@@ -433,7 +465,7 @@ class MainWindow(QMainWindow):
                     break
 
     def test_1(self):
-        print("Test 2")
+        print("Test 1")
         cp = np.array([
             [3, 4, 6, 7.2, 11, 14],
             [10, 7, 6, 7.5, 7, 6],
@@ -458,14 +490,6 @@ class MainWindow(QMainWindow):
         self.geometries[-1].update(cp, 10, 10)
         self.ren.Render()
         self.iren.Render()
-
-    # Overrides what occurs when the window is resized.
-    # def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-    #     size = self.visualizer.size()
-    #     print(self.renwin.GetSize(), self.ren.GetSize())
-    #     self.renwin.SetSize(size.width(), size.height())
-    #     print(size)
-    #     print(self.renwin.GetSize(), self.ren.GetSize())
 
     # def plot(self):
     #     """Plot data."""
