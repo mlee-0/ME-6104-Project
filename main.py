@@ -62,15 +62,16 @@ class MainWindow(QMainWindow):
         # Buttons for adding curves and surfaces.
         button_curve = QPushButton("Add Curve...")
         menu = QMenu()
-        menu.addAction(Geometry.BEZIER, self.add_bezier_curve)
-        menu.addAction(Geometry.HERMITE, self.add_hermite_curve)
-        menu.addAction(Geometry.BSPLINE, self.add_bspline_curve)
+        menu.addAction(Geometry.BEZIER, self.make_bezier_curve)
+        menu.addAction(Geometry.HERMITE, self.make_hermite_curve)
+        menu.addAction(Geometry.BSPLINE, self.make_bspline_curve)
         button_curve.setMenu(menu)
 
         button_surface = QPushButton("Add Surface...")
         menu = QMenu()
-        menu.addAction(Geometry.BEZIER, self.add_bezier_surface)
-        menu.addAction(Geometry.HERMITE, self.add_hermite_surface)
+        menu.addAction(Geometry.BEZIER, self.make_bezier_surface)
+        menu.addAction(Geometry.HERMITE, self.make_hermite_surface)
+        menu.addAction(Geometry.BSPLINE, self.make_bspline_surface)
         button_surface.setMenu(menu)
 
         layout = QHBoxLayout()
@@ -85,10 +86,13 @@ class MainWindow(QMainWindow):
 
         self.fields_number_cp = self._make_fields_number_cp()
         self.fields_number_nodes = self._make_fields_number_nodes()
+        self.fields_order = self._make_fields_order()
         self.fields_number_cp.setEnabled(False)
         self.fields_number_nodes.setEnabled(False)
+        self.fields_order.setEnabled(False)
         main_layout.addWidget(self.fields_number_cp)
         main_layout.addWidget(self.fields_number_nodes)
+        main_layout.addWidget(self.fields_order)
 
         main_layout.addStretch(1)
 
@@ -199,6 +203,25 @@ class MainWindow(QMainWindow):
 
         return widget
     
+    def _make_fields_order(self) -> QWidget:
+        """Return a widget containing fields for modifying the order."""
+        widget = QWidget()
+        main_layout = QVBoxLayout(widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        layout = QHBoxLayout()
+        self.field_order = QSpinBox()
+        self.field_order.setMinimum(1)
+        self.field_order.setMaximum(100)
+        self.field_order.setAlignment(Qt.AlignRight)
+        self.field_order.valueChanged.connect(self.update_order)
+        layout.addWidget(QLabel("Order:"))
+        layout.addStretch(1)
+        layout.addWidget(self.field_order)
+        main_layout.addLayout(layout)
+
+        return widget
+    
     # def _make_bezier_curve_fields(self) -> QWidget:
     #     """Return a widget containing fields for modifying a Bezier curve."""
     #     main_layout = QVBoxLayout()
@@ -301,61 +324,84 @@ class MainWindow(QMainWindow):
         self.ren.ResetCamera()
         self.iren.Render()
 
-    def add_bezier_curve(self) -> None:
+    def add_geometry(self, geometry: Geometry) -> None:
+        """Add the Geometry object to the list of all geometries and add its actors to the visualizer."""
+        self.geometries.append(geometry)
+        for actor in geometry.get_actors():
+            self.ren.AddActor(actor)
+        self.iren.GetInteractorStyle().add_to_pick_list(geometry)
+
+        self.ren.Render()
+        self.reset_camera()
+
+    def make_bezier_curve(self) -> None:
         """Add a preset Bezier curve to the visualizer."""
         order = 2
         number_u = 10
 
-        control_points = np.vstack((
+        cp = np.vstack((
             np.arange(order+1),  # x-coordinates
             np.arange(order+1),  # y-coordinates
             np.zeros(order+1),  # z-coordinates
         ))
-        control_points = np.expand_dims(control_points, 2)
+        cp = np.expand_dims(cp, 2)
 
-        geometry = BezierCurve(control_points, number_u)
-        self.geometries.append(geometry)
-        for actor in geometry.get_actors():
-            self.ren.AddActor(actor)
-        
-        self.iren.GetInteractorStyle().add_to_pick_list(geometry)
-        
-        self.ren.Render()
-        self.reset_camera()
+        geometry = BezierCurve(cp, number_u)
+        self.add_geometry(geometry)
 
-    def add_hermite_curve(self) -> None:
+    def make_hermite_curve(self) -> None:
         """Add a preset Hermite curve to the visualizer."""
         pass
 
-    def add_bspline_curve(self) -> None:
+    def make_bspline_curve(self) -> None:
         """Add a preset B-spline curve to the visualizer."""
-        pass
+        order = 2
+        number_cp = 4
+        number_u = 10
+        cp = np.vstack((
+            np.arange(number_cp),  # x-coordinates
+            np.arange(number_cp),  # y-coordinates
+            np.zeros(number_cp),  # z-coordinates
+        ))
+        cp = np.expand_dims(cp, 2)
+
+        geometry = BSplineCurve(cp, number_u, order=order)
+        self.add_geometry(geometry)
     
-    def add_bezier_surface(self) -> None:
+    def make_bezier_surface(self) -> None:
         """Add a preset Bezier surface to the visualizer."""
         order = 2
-        number_u = 5
-        number_v = 5
+        number_u = 10
+        number_v = 10
 
-        control_points = np.dstack(
+        cp = np.dstack(
             np.meshgrid(np.arange(order+1), np.arange(order+1)) + [np.zeros((order+1,)*2)]
         )
-        control_points = control_points.transpose((2, 0, 1))
+        cp = cp.transpose((2, 0, 1))
 
-        geometry = BezierSurface(control_points, number_u, number_v)
-        self.geometries.append(geometry)
-        for actor in geometry.get_actors():
-            self.ren.AddActor(actor)
-        
-        self.iren.GetInteractorStyle().add_to_pick_list(geometry)
-        
-        self.ren.Render()
-        self.reset_camera()
+        geometry = BezierSurface(cp, number_u, number_v)
+        self.add_geometry(geometry)
 
-    def add_hermite_surface(self) -> None:
+    def make_hermite_surface(self) -> None:
         """Add a preset Hermite surface to the visualizer."""
         pass
     
+    def make_bspline_surface(self) -> None:
+        """Add a preset B-spline surface to the visualizer."""
+        order = 2
+        number_cp_u = 3
+        number_cp_v = 3
+        number_u = 10
+        number_v = 10
+
+        cp = np.dstack(
+            np.meshgrid(np.arange(number_cp_u), np.arange(number_cp_v)) + [np.zeros((number_cp_u,number_cp_v))]
+        )
+        cp = cp.transpose((2, 0, 1))
+
+        geometry = BSplineSurface(cp, number_u, number_v, order)
+        self.add_geometry(geometry)
+
     def update_cp(self) -> None:
         """Update the control points in the current geometry."""
         point = np.array([
@@ -388,6 +434,13 @@ class MainWindow(QMainWindow):
             self.ren.Render()
             self.iren.Render()
 
+    def update_order(self) -> None:
+        """Update the order of the current geometry."""
+        if self.selected_geometry is not None:
+            self.selected_geometry.update(order=self.field_order.value())
+            self.ren.Render()
+            self.iren.Render()
+    
     def remove_current(self) -> None:
         """Remove the currently selected curve or surface."""
         if self.selected_geometry:
@@ -409,6 +462,7 @@ class MainWindow(QMainWindow):
             self.fields_cp.setEnabled(False)
             self.fields_number_cp.setEnabled(False)
             self.fields_number_nodes.setEnabled(False)
+            self.fields_order.setEnabled(False)
         else:
             # Search for the Geometry object that the given actor corresponds to.
             for geometry in self.geometries:
@@ -417,7 +471,7 @@ class MainWindow(QMainWindow):
                     continue
                 # The Geometry object is found.
                 else:
-                    is_surface = type(geometry) in [BezierSurface, HermiteSurface]
+                    is_surface = type(geometry) in [BezierSurface, HermiteSurface, BSplineSurface]
                     actor_cp = actors[0]
                     point = None
                     if actor is actor_cp:
@@ -445,6 +499,8 @@ class MainWindow(QMainWindow):
                     self.fields_number_nodes.setEnabled(True)
                     self.field_cp_v.setEnabled(is_surface)
                     self.field_nodes_v.setEnabled(is_surface)
+                    if isinstance(geometry, BSplineCurve) or isinstance(geometry, BSplineSurface):
+                        self.fields_order.setEnabled(True)
 
                     self.field_cp_u.blockSignals(True)
                     self.field_cp_v.blockSignals(True)
@@ -461,6 +517,11 @@ class MainWindow(QMainWindow):
                         self.field_nodes_v.setValue(self.selected_geometry.number_v)
                     self.field_nodes_u.blockSignals(False)
                     self.field_nodes_v.blockSignals(False)
+
+                    if type(geometry) in (BSplineCurve, BSplineSurface):
+                        self.field_order.blockSignals(True)
+                        self.field_order.setValue(self.selected_geometry.get_order())
+                        self.field_order.blockSignals(False)
 
                     break
 

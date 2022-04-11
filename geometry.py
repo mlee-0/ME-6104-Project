@@ -11,6 +11,7 @@ from scipy import interpolate
 import vtk
 
 import bezier
+import bspline
 from colors import *
 
 
@@ -24,13 +25,15 @@ class Geometry(ABC):
     # The number of instances of the class, incremented each time a new instance is created. Each subclass inherits this variable and increments it independently of other subclasses.
     instances = 0
 
-    def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None):
+    def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None, order: int = None):
         self.cp = cp
         self.number_u = number_u
         self.number_v = number_v
+        self.order = order
         # Calculate nodes and the order.
-        self.nodes = self.calculate(self.cp, self.number_u, self.number_v)
-        self.order = self.calculate_order(self.cp)
+        self.nodes = self.calculate(self.cp, self.number_u, self.number_v, self.order)
+        if self.order is None:
+            self.order = self.get_order()
 
         # Set the instance number, used to differentiate between different instances of the same type of geometry on the GUI.
         self.increment_instances()
@@ -75,19 +78,45 @@ class Geometry(ABC):
     def increment_instances(cls):
         cls.instances += 1
 
-    @abstractmethod
-    def update(self) -> None:
+    def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None, order: int = None) -> None:
         """Recalculate the geometry if the user modified information in the GUI."""
+        # Whether the number of control points or nodes has changed.
+        requires_reset = (
+            number_u is not None and number_u != self.number_u or
+            number_v is not None and number_v != self.number_v or
+            cp is not None and cp.shape != self.cp.shape
+        )
+
+        # Store any given inputs.
+        if cp is not None:
+            self.cp = cp
+        if number_u is not None:
+            self.number_u = number_u
+        if number_v is not None:
+            self.number_v = number_v
+        if order is not None:
+            self.order = order
+        
+        # Calculate nodes and the order.
+        self.nodes = self.calculate(self.cp, self.number_u, self.number_v, self.order)
+        self.order = self.get_order()
+        if requires_reset:
+            self.reset_data()
+        else:
+            self.update_data()
+    
+    # @abstractmethod
+    # def update(self) -> None:
+    #     """Recalculate the geometry if the user modified information in the GUI."""
     
     @staticmethod
     @abstractmethod
-    def calculate(cp: np.ndarray) -> np.ndarray:
-        """Calculate and return all nodes in the geometry for the given control points."""
+    def calculate() -> np.ndarray:
+        """Calculate and return all nodes in the geometry for the given control points and parameters."""
     
-    @staticmethod
     @abstractmethod
-    def calculate_order(cp: np.ndarray) -> int:
-        """Calculate the order of the geometry using the given control points."""
+    def get_order(self) -> int:
+        """Return the order of the geometry."""
     
     def update_data(self) -> None:
         """Update objects used to store point data. Used when the numbers of control points or nodes do not change."""
@@ -186,8 +215,8 @@ class Geometry(ABC):
         pass
 
 class BezierCurve(Geometry):
-    def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None):
-        # Whether the number of points has changed.
+    def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None, order: int = None):
+        # Whether the number of control points or nodes has changed.
         requires_reset = (
             number_u is not None and number_u != self.number_u or
             number_v is not None and number_v != self.number_v or
@@ -203,8 +232,8 @@ class BezierCurve(Geometry):
             self.number_v = number_v
         
         # Calculate nodes and the order.
-        self.nodes = self.calculate(self.cp, self.number_u, self.number_v)
-        self.order = self.calculate_order(self.cp)
+        self.nodes = self.calculate(self.cp, self.number_u, self.number_v, None)
+        self.order = self.get_order()
         if requires_reset:
             self.reset_data()
         else:
@@ -214,9 +243,8 @@ class BezierCurve(Geometry):
     def calculate(cp: np.ndarray, number_u: int, _):
         return bezier.bezier_curve(cp, number_u)
     
-    @staticmethod
-    def calculate_order(cp: np.ndarray) -> int:
-        return cp.shape[1] - 1
+    def get_order(self) -> int:
+        return self.cp.shape[1] - 1
     
     def change_number_cp(self, number_u: int, _) -> np.ndarray:
         """Return a new control points array with a different number of control points using interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
@@ -235,9 +263,20 @@ class BezierCurve(Geometry):
 class HermiteCurve(Geometry):
     pass
 
+class BSplineCurve(Geometry):
+    @staticmethod
+    def calculate(cp: np.ndarray, number_u: int, _, order: int) -> np.ndarray:
+        return bspline.curve(cp, number_u, order)
+    
+    def get_order(self) -> int:
+        return self.order
+    
+    def __repr__(self) -> str:
+        return f"{self.BSPLINE} curve #{self.instance}"
+
 class BezierSurface(Geometry):
-    def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None):
-        # Whether the number of points has changed.
+    def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None, order: int = None):
+        # Whether the number of control points or nodes has changed.
         requires_reset = (
             number_u is not None and number_u != self.number_u or
             number_v is not None and number_v != self.number_v or
@@ -254,19 +293,18 @@ class BezierSurface(Geometry):
         
         # Calculate nodes and the order.
         self.nodes = self.calculate(self.cp, self.number_u, self.number_v)
-        self.order = self.calculate_order(self.cp)
+        self.order = self.get_order()
         if requires_reset:
             self.reset_data()
         else:
             self.update_data()
     
     @staticmethod
-    def calculate(cp: np.ndarray, number_u: int, number_v: int):
+    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         return bezier.bezier_surface(cp, number_u, number_v)
     
-    @staticmethod
-    def calculate_order(cp: np.ndarray) -> Tuple[int, int]:
-        return (cp.shape[1] - 1, cp.shape[2] - 1)
+    def get_order(self) -> Tuple[int, int]:
+        return (self.cp.shape[1] - 1, self.cp.shape[2] - 1)
     
     def change_number_cp(self, number_u: int, number_v: int) -> np.ndarray:
         """Return a new control points array with a different number of control points using 2D interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
@@ -289,17 +327,27 @@ class BezierSurface(Geometry):
 
 
 class HermiteSurface(Geometry):
-    def update(self, cp: np.ndarray):
-        self.cp = cp
-        pass
+    # def update(self, cp: np.ndarray):
+    #     self.cp = cp
+    #     pass
 
     @staticmethod
-    def calculate(cp: np.ndarray, number_u: int, number_v: int):
+    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         pass
 
-    @staticmethod
-    def calculate_order(cp: np.ndarray):
+    def get_order(self):
         return 3
     
     def __repr__(self) -> str:
         return f"{self.HERMITE} surface #{self.instance}"
+
+class BSplineSurface(Geometry):
+    @staticmethod
+    def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
+        return bspline.surface(cp, number_u, number_v, order)
+    
+    def get_order(self):
+        return self.order
+    
+    def __repr__(self) -> str:
+        return f"{self.BSPLINE} surface #{self.instance}"
