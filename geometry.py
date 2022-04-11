@@ -105,10 +105,6 @@ class Geometry(ABC):
         else:
             self.update_data()
     
-    # @abstractmethod
-    # def update(self) -> None:
-    #     """Recalculate the geometry if the user modified information in the GUI."""
-    
     @staticmethod
     @abstractmethod
     def calculate() -> np.ndarray:
@@ -117,6 +113,26 @@ class Geometry(ABC):
     @abstractmethod
     def get_order(self) -> int:
         """Return the order of the geometry."""
+    
+    @staticmethod
+    def get_order_name(order) -> int:
+        """Return a string describing the order."""
+        if isinstance(order, tuple):
+            # Order of all dimensions are equal.
+            if len(set(order)) == 1 and order[0] <= 3:
+                string = f"bi{Geometry.get_order_name(order[0])}"
+            else:
+                string = f"{order}-order"
+        else:
+            if order == 1:
+                string = "linear"
+            elif order == 2:
+                string = "quadratic"
+            elif order == 3:
+                string = "cubic"
+            else:
+                string = f"{order}th-order"
+        return string
     
     def update_data(self) -> None:
         """Update objects used to store point data. Used when the numbers of control points or nodes do not change."""
@@ -214,33 +230,12 @@ class Geometry(ABC):
     def __repr__(self) -> str:
         pass
 
-class BezierCurve(Geometry):
-    def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None, order: int = None):
-        # Whether the number of control points or nodes has changed.
-        requires_reset = (
-            number_u is not None and number_u != self.number_u or
-            number_v is not None and number_v != self.number_v or
-            cp is not None and cp.shape != self.cp.shape
-        )
+class BezierGeometry(Geometry):
+    pass
 
-        # Store any given inputs.
-        if cp is not None:
-            self.cp = cp
-        if number_u is not None:
-            self.number_u = number_u
-        if number_v is not None:
-            self.number_v = number_v
-        
-        # Calculate nodes and the order.
-        self.nodes = self.calculate(self.cp, self.number_u, self.number_v, None)
-        self.order = self.get_order()
-        if requires_reset:
-            self.reset_data()
-        else:
-            self.update_data()
-
+class BezierCurve(BezierGeometry):
     @staticmethod
-    def calculate(cp: np.ndarray, number_u: int, _):
+    def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
         return bezier.bezier_curve(cp, number_u)
     
     def get_order(self) -> int:
@@ -258,47 +253,9 @@ class BezierCurve(Geometry):
         return cp
     
     def __repr__(self) -> str:
-        return f"{self.BEZIER} curve #{self.instance}, order {self.order}"
+        return f"{self.BEZIER} curve #{self.instance} ({self.get_order_name(self.order)})"
 
-class HermiteCurve(Geometry):
-    pass
-
-class BSplineCurve(Geometry):
-    @staticmethod
-    def calculate(cp: np.ndarray, number_u: int, _, order: int) -> np.ndarray:
-        return bspline.curve(cp, number_u, order)
-    
-    def get_order(self) -> int:
-        return self.order
-    
-    def __repr__(self) -> str:
-        return f"{self.BSPLINE} curve #{self.instance}"
-
-class BezierSurface(Geometry):
-    def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None, order: int = None):
-        # Whether the number of control points or nodes has changed.
-        requires_reset = (
-            number_u is not None and number_u != self.number_u or
-            number_v is not None and number_v != self.number_v or
-            cp is not None and cp.shape != self.cp.shape
-        )
-
-        # Store any given inputs.
-        if cp is not None:
-            self.cp = cp
-        if number_u is not None:
-            self.number_u = number_u
-        if number_v is not None:
-            self.number_v = number_v
-        
-        # Calculate nodes and the order.
-        self.nodes = self.calculate(self.cp, self.number_u, self.number_v)
-        self.order = self.get_order()
-        if requires_reset:
-            self.reset_data()
-        else:
-            self.update_data()
-    
+class BezierSurface(BezierGeometry):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         return bezier.bezier_surface(cp, number_u, number_v)
@@ -323,31 +280,44 @@ class BezierSurface(Geometry):
         return cp
     
     def __repr__(self) -> str:
-        return f"{self.BEZIER} surface #{self.instance}, order {self.order}"
+        return f"{self.BEZIER} surface #{self.instance} ({self.get_order_name(self.order)})"
 
+class HermiteGeometry(Geometry):
+    def get_order(self):
+        return 3
 
-class HermiteSurface(Geometry):
-    # def update(self, cp: np.ndarray):
-    #     self.cp = cp
-    #     pass
-
+class HermiteCurve(HermiteGeometry):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         pass
 
-    def get_order(self):
-        return 3
+    def __repr__(self) -> str:
+        return f"{self.HERMITE} curve #{self.instance} ({self.get_order_name(self.order)})"
+
+class HermiteSurface(HermiteGeometry):
+    @staticmethod
+    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
+        pass
+
+    def __repr__(self) -> str:
+        return f"{self.HERMITE} surface #{self.instance} ({self.get_order_name(self.order)})"
+
+class BSplineGeometry(Geometry):
+    def get_order(self) -> int:
+        return self.order
+
+class BSplineCurve(BSplineGeometry):
+    @staticmethod
+    def calculate(cp: np.ndarray, number_u: int, _, order: int) -> np.ndarray:
+        return bspline.curve(cp, number_u, order)
     
     def __repr__(self) -> str:
-        return f"{self.HERMITE} surface #{self.instance}"
+        return f"{self.BSPLINE} curve #{self.instance} ({self.get_order_name(self.order)})"
 
-class BSplineSurface(Geometry):
+class BSplineSurface(BSplineGeometry):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
         return bspline.surface(cp, number_u, number_v, order)
     
-    def get_order(self):
-        return self.order
-    
     def __repr__(self) -> str:
-        return f"{self.BSPLINE} surface #{self.instance}"
+        return f"{self.BSPLINE} surface #{self.instance} ({self.get_order_name(self.order)})"

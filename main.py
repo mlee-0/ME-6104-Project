@@ -94,6 +94,10 @@ class MainWindow(QMainWindow):
 
         main_layout.addStretch(1)
 
+        self.label_selected = QLabel()
+        self.label_selected.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.label_selected)
+
         button = QPushButton("Delete")
         button.clicked.connect(self.remove_current)
         main_layout.addWidget(button)
@@ -255,6 +259,13 @@ class MainWindow(QMainWindow):
 
         return widget
     
+    def update_label_selected(self) -> None:
+        """Display the currently selected geometry's name in the label."""
+        if self.selected_geometry:
+            self.label_selected.setText(str(self.selected_geometry))
+        else:
+            self.label_selected.clear()
+    
     def set_camera_top(self) -> None:
         """Set the camera to look down along the Z direction."""
         camera = self.ren.GetActiveCamera()
@@ -374,6 +385,7 @@ class MainWindow(QMainWindow):
             self.selected_geometry.update(cp)
             self.ren.Render()
             self.iren.Render()
+            self.update_label_selected()
     
     def update_number_nodes(self) -> None:
         """Update the number of nodes in the current geometry."""
@@ -391,6 +403,7 @@ class MainWindow(QMainWindow):
             self.selected_geometry.update(order=self.field_order.value())
             self.ren.Render()
             self.iren.Render()
+            self.update_label_selected()
     
     def remove_current(self) -> None:
         """Remove the currently selected curve or surface."""
@@ -404,12 +417,14 @@ class MainWindow(QMainWindow):
 
             self.ren.Render()
             self.iren.Render()
+            self.update_label_selected()
 
     def load_geometry(self, actor: vtk.vtkActor, point_id: int = None) -> None:
         """Populate the fields in the GUI with the information of the selected geometry. Called by the visualizer when the user selects geometry."""
         if actor is None:
             self.selected_geometry = None
             self.selected_point = None
+            self.update_label_selected()
             self.fields_cp.setEnabled(False)
             self.fields_number_cp.setEnabled(False)
             self.fields_number_nodes.setEnabled(False)
@@ -444,13 +459,13 @@ class MainWindow(QMainWindow):
                         self.fields_cp.setEnabled(False)
                     
                     self.selected_geometry = geometry
-                    print(f"Selected {geometry}")
+                    self.update_label_selected()
 
                     self.fields_number_cp.setEnabled(True)
                     self.fields_number_nodes.setEnabled(True)
                     self.field_cp_v.setEnabled(is_surface)
                     self.field_nodes_v.setEnabled(is_surface)
-                    if isinstance(geometry, BSplineCurve) or isinstance(geometry, BSplineSurface):
+                    if isinstance(geometry, BSplineGeometry):
                         self.fields_order.setEnabled(True)
 
                     self.field_cp_u.blockSignals(True)
@@ -469,7 +484,7 @@ class MainWindow(QMainWindow):
                     self.field_nodes_u.blockSignals(False)
                     self.field_nodes_v.blockSignals(False)
 
-                    if type(geometry) in (BSplineCurve, BSplineSurface):
+                    if isinstance(geometry, BSplineGeometry):
                         self.field_order.blockSignals(True)
                         self.field_order.setValue(self.selected_geometry.get_order())
                         self.field_order.blockSignals(False)
