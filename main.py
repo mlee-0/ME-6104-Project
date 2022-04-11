@@ -42,11 +42,9 @@ class MainWindow(QMainWindow):
 
         # Add widgets to the layout.
         self.sidebar = self._make_sidebar()
-        # self.plot = self._make_plot()
         visualizer = self._make_visualizer()
         widget_camera_controls = self._make_widget_camera_controls()
         layout.addWidget(self.sidebar, 0, 0, 2, 1)
-        # layout.addWidget(self.plot)
         layout.addWidget(visualizer, 0, 1)
         layout.addWidget(widget_camera_controls, 1, 1)
 
@@ -222,53 +220,6 @@ class MainWindow(QMainWindow):
 
         return widget
     
-    # def _make_bezier_curve_fields(self) -> QWidget:
-    #     """Return a widget containing fields for modifying a Bezier curve."""
-    #     main_layout = QVBoxLayout()
-
-    #     widget = QWidget()
-    #     widget.setLayout(main_layout)
-    #     pass
-    
-    # def _make_hermite_curve_fields(self) -> QWidget:
-    #     """Return a widget containing fields for modifying a Hermite curve."""
-    #     pass
-
-    # def _make_bspline_curve_fields(self) -> QWidget:
-    #     """Return a widget containing fields for modifying a B-spline curve."""
-    #     pass
-    
-    # def _make_bezier_surface_fields(self) -> QWidget:
-    #     """Return a widget containing fields for modifying a Bezier surface."""
-    #     pass
-
-    # def _make_plot(self) -> QWidget:
-    #     """Return a plot widget."""
-    #     main_layout = QVBoxLayout()
-
-    #     # Create the figure.
-    #     self.figure = plt.figure()
-    #     self.axes = mplot3d.Axes3D(self.figure, auto_add_to_figure=False)
-    #     self.figure.add_axes(self.axes)
-
-    #     # Create the canvas widget that displays the figure.
-    #     self.canvas = FigureCanvasQTAgg(self.figure)
-
-    #     # Create the plot toolbar.
-    #     toolbar = NavigationToolbar2QT(self.canvas, self)
-
-    #     button = QPushButton('Plot')
-    #     button.clicked.connect(self.plot)
-
-    #     main_layout.addWidget(toolbar)
-    #     main_layout.addWidget(self.canvas)
-    #     main_layout.addWidget(button)
-
-    #     widget = QWidget()
-    #     widget.setLayout(main_layout)
-
-    #     return widget
-    
     def _make_visualizer(self) -> QWidget:
         """Return a VTK widget for displaying geometry."""
         self.ren = vtk.vtkRenderer()
@@ -356,7 +307,7 @@ class MainWindow(QMainWindow):
     def make_bspline_curve(self) -> None:
         """Add a preset B-spline curve to the visualizer."""
         order = 2
-        number_cp = 4
+        number_cp = 3
         number_u = 10
         cp = np.vstack((
             np.arange(number_cp),  # x-coordinates
@@ -525,42 +476,25 @@ class MainWindow(QMainWindow):
 
                     break
 
-    def test_1(self):
-        print("Test 1")
+    def preset_1(self):
+        print("Preset 1")
         cp = np.array([
             [3, 4, 6, 7.2, 11, 14],
             [10, 7, 6, 7.5, 7, 6],
             [1, 2, 3, 3.5, 2, 1]
         ])
-        number_u = 50
-        number_v = 50
-        geometry = BezierCurve(cp, number_u, number_v)
-        self.geometries.append(geometry)
-        for actor in geometry.get_actors():
-            self.ren.AddActor(actor)
-        self.ren.Render()
-        self.reset_camera()
+        geometry = BezierCurve(cp, 25, 25)
+        self.add_geometry(geometry)
 
-    def test_2(self):
-        print("Test 2")
-        cp=np.array([
+    def preset_2(self):
+        print("Preset 2")
+        cp = np.array([
             [[1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8]],
             [[20, 21, 22, 23], [17, 17, 17, 17], [14, 14, 14, 14], [11, 11, 11, 11]],
             [[2, 5, 4, 3], [2, 6, 5, 5], [2, 6, 5, 4], [2, 3, 4, 3]],
         ])
-        self.geometries[-1].update(cp, 10, 10)
-        self.ren.Render()
-        self.iren.Render()
-
-    # def plot(self):
-    #     """Plot data."""
-    #     # The data to plot.
-    #     data = [[random.random() for i in range(10)] for _ in range(3)]
-        
-    #     # Clear the figure and plot the new data.
-    #     plt.cla()
-    #     self.axes.plot3D(data[0], data[1], data[2], '.-')
-    #     self.canvas.draw()
+        geometry = BezierSurface(cp, 25, 25)
+        self.add_geometry()
 
 
 if __name__ == '__main__':
