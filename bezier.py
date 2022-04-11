@@ -3,9 +3,9 @@ import math
 import numpy as np
 
 
-def bernstein_poly(u, k, n):
+def bernstein_poly(u: np.ndarray, k: int, n: int) -> np.ndarray:
     combination = lambda n, i: math.factorial(n) / (math.factorial(i) * math.factorial(n-i))
-    return combination(n, k) * np.power(u, k) * np.power(1 - u, n - k)
+    return combination(n, k) * (u ** k) * ((1 - u) ** (n - k))
 
 def bezier_curve(cp, num):
     u = np.linspace(0, 1, num)
