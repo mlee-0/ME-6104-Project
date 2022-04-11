@@ -18,7 +18,6 @@ import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
 
 from geometry import *
-import bezier
 from interaction import InteractorStyle
 
 
@@ -119,7 +118,7 @@ class MainWindow(QMainWindow):
         self.field_x.setSingleStep(0.1)
         self.field_x.setDecimals(1)
         self.field_x.setAlignment(Qt.AlignRight)
-        self.field_x.valueChanged.connect(self.update_control_point)
+        self.field_x.valueChanged.connect(self.update_cp)
         layout = QHBoxLayout()
         layout.addWidget(QLabel("X"))
         layout.addWidget(self.field_x)
@@ -131,7 +130,7 @@ class MainWindow(QMainWindow):
         self.field_y.setSingleStep(0.1)
         self.field_y.setDecimals(1)
         self.field_y.setAlignment(Qt.AlignRight)
-        self.field_y.valueChanged.connect(self.update_control_point)
+        self.field_y.valueChanged.connect(self.update_cp)
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Y"))
         layout.addWidget(self.field_y)
@@ -143,7 +142,7 @@ class MainWindow(QMainWindow):
         self.field_z.setSingleStep(0.1)
         self.field_z.setDecimals(1)
         self.field_z.setAlignment(Qt.AlignRight)
-        self.field_z.valueChanged.connect(self.update_control_point)
+        self.field_z.valueChanged.connect(self.update_cp)
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Z"))
         layout.addWidget(self.field_z)
@@ -162,10 +161,12 @@ class MainWindow(QMainWindow):
         self.field_cp_u.setMinimum(2)
         self.field_cp_u.setMaximum(100)
         self.field_cp_u.setAlignment(Qt.AlignRight)
+        self.field_cp_u.valueChanged.connect(self.update_number_cp)
         self.field_cp_v = QSpinBox()
         self.field_cp_v.setMinimum(2)
         self.field_cp_v.setMaximum(100)
         self.field_cp_v.setAlignment(Qt.AlignRight)
+        self.field_cp_v.valueChanged.connect(self.update_number_cp)
         layout.addWidget(QLabel("Control Points:"))
         layout.addStretch(1)
         layout.addWidget(QLabel("u"))
@@ -187,12 +188,12 @@ class MainWindow(QMainWindow):
         self.field_nodes_u.setMinimum(2)
         self.field_nodes_u.setMaximum(100)
         self.field_nodes_u.setAlignment(Qt.AlignRight)
-        self.field_nodes_u.valueChanged.connect(self.update_nodes)
+        self.field_nodes_u.valueChanged.connect(self.update_number_nodes)
         self.field_nodes_v = QSpinBox()
         self.field_nodes_v.setMinimum(2)
         self.field_nodes_v.setMaximum(100)
         self.field_nodes_v.setAlignment(Qt.AlignRight)
-        self.field_nodes_v.valueChanged.connect(self.update_nodes)
+        self.field_nodes_v.valueChanged.connect(self.update_number_nodes)
         layout.addWidget(QLabel("Nodes:"))
         layout.addStretch(1)
         layout.addWidget(QLabel("u"))
@@ -323,8 +324,8 @@ class MainWindow(QMainWindow):
         """Add a preset Hermite surface to the visualizer."""
         pass
     
-    def update_control_point(self) -> None:
-        """Update the current geometry using the values in the control point fields."""
+    def update_cp(self) -> None:
+        """Update the control points in the current geometry."""
         point = np.array([
             self.field_x.value(),
             self.field_y.value(),
@@ -337,8 +338,20 @@ class MainWindow(QMainWindow):
             self.ren.Render()
             self.iren.Render()
 
-    def update_nodes(self) -> None:
-        """Update the current geometry using the values in the relevant fields."""
+    def update_number_cp(self) -> None:
+        """Update the number of control points in the current geometry."""
+        if self.selected_geometry is not None:
+            try:
+                cp = self.selected_geometry.change_number_cp(self.field_cp_u.value(), self.field_cp_v.value())
+            except AttributeError:
+                return
+            else:
+                self.selected_geometry.update(cp)
+            self.ren.Render()
+            self.iren.Render()
+    
+    def update_number_nodes(self) -> None:
+        """Update the number of nodes in the current geometry."""
         if self.selected_geometry is not None:
             self.selected_geometry.update(
                 number_u=self.field_nodes_u.value(),

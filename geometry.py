@@ -1,5 +1,5 @@
 """
-Classes that represent curves and surfaces.
+Classes that store control points and nodes for curves and surfaces.
 """
 
 
@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple
 
 import numpy as np
+from scipy import interpolate
 import vtk
 
 import bezier
@@ -14,7 +15,7 @@ from colors import *
 
 
 class Geometry(ABC):
-    """Base class for all geometry."""
+    """Base class for all geometries."""
 
     BEZIER = "Bézier"
     HERMITE = "Hermite"
@@ -175,6 +176,10 @@ class Geometry(ABC):
     def get_actors(self) -> Tuple[vtk.vtkActor]:
         """Return a tuple of all actors associated with this geometry."""
         return self.actor_cp, self.actor_nodes
+    
+    @abstractmethod
+    def __repr__(self) -> str:
+        pass
 
 class BezierCurve(Geometry):
     def update(self, cp: np.ndarray = None, number_u: int = None, number_v: int = None):
@@ -210,7 +215,7 @@ class BezierCurve(Geometry):
         return cp.shape[1] - 1
     
     def __repr__(self) -> str:
-        return f"Bezier curve #{self.instance}, order {self.order}"
+        return f"{self.BEZIER} curve #{self.instance}, order {self.order}"
 
 class HermiteCurve(Geometry):
     pass
@@ -248,8 +253,54 @@ class BezierSurface(Geometry):
     def calculate_order(cp: np.ndarray) -> Tuple[int, int]:
         return (cp.shape[1] - 1, cp.shape[2] - 1)
     
+    def change_number_cp(self, number_u: int, number_v: int) -> np.ndarray:
+        """Return a new control points array with a different number of control points using 2D interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
+        number_u, number_v = number_v, number_u
+        cp = np.empty((3, number_u, number_v))
+        for i in range(3):
+            f = interpolate.interp2d(
+                np.linspace(0, 1, self.cp.shape[2]),
+                np.linspace(0, 1, self.cp.shape[1]),
+                self.cp[i, ...],
+            )
+            cp[i, ...] = f(
+                np.linspace(0, 1, number_v),
+                np.linspace(0, 1, number_u),
+            )
+        return cp
+
+        # print(number_u, number_v)
+        # array_1 = np.empty((self.cp.shape[0], self.cp.shape[1], number_v))
+        # if number_u != self.cp.shape[1]:
+        #     for i in range(array_1.shape[1]):
+        #         for xyz in range(3):
+        #             print(np.linspace(0, self.cp.shape[2]-1, number_v))
+        #             print(np.arange(self.cp.shape[2]))
+        #             print()
+        #             array_1[xyz, i, :] = np.interp(
+        #                 np.linspace(0, 1, number_v),
+        #                 np.linspace(0, 1, self.cp.shape[2]),
+        #                 self.cp[xyz, i, :],
+        #             )
+        # else:
+        #     array_1 = self.cp.copy()
+        
+        # array_2 = np.empty((self.cp.shape[0], number_u, number_v))
+        # if number_v != self.cp.shape[2]:
+        #     for j in range(array_2.shape[2]):
+        #         for xyz in range(3):
+        #             array_2[xyz, :, j] = np.interp(
+        #                 np.linspace(0, 1, number_u),
+        #                 np.linspace(0, 1, self.cp.shape[1]),
+        #                 array_1[xyz, :, j],
+        #             )
+        # else:
+        #     array_2 = array_1
+        
+        # return array_2
+    
     def __repr__(self) -> str:
-        return f"Bezier surface #{self.instance}, order {self.order}"
+        return f"{self.BEZIER} surface #{self.instance}, order {self.order}"
 
 
 class HermiteSurface(Geometry):
@@ -266,4 +317,4 @@ class HermiteSurface(Geometry):
         return 3
     
     def __repr__(self) -> str:
-        return f"Hermite surface #{self.instance}"
+        return f"{self.HERMITE} surface #{self.instance}"
