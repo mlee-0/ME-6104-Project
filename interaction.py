@@ -38,6 +38,8 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.AddObserver("LeftButtonPressEvent", self.left_mouse_press)
         self.AddObserver("LeftButtonReleaseEvent", self.left_mouse_release)
         self.AddObserver("MouseMoveEvent", self.mouse_move)
+        # Whether an actor is currently being dragged by the mouse.
+        self.is_dragging = False
     
     def add_to_pick_list(self, geometry):
         """Add the actors associated with the Geometry object to their corresponding pickers."""
@@ -53,6 +55,9 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
 
     def left_mouse_press(self, obj, event):
         self.pick()
+        # Clicked on an actor.
+        if self.point_picker.GetPointId() >= 0 or self.prop_picker.GetActor() is not None:
+            self.is_dragging = True
 
         self.GetInteractor().Render()
 
@@ -61,6 +66,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
 
     def left_mouse_release(self, obj, event):
         self.pick()
+        self.is_dragging = False
 
         point = self.point_picker.GetPointId()
         actor_cp = self.point_picker.GetActor()
@@ -83,16 +89,17 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
 
         actor = self.point_picker.GetActor()
         point = self.point_picker.GetPointId()
-        self.highlight_point(actor, point)
+        self.highlight_point(actor, point, BLUE_LIGHT)
         
         actor = self.prop_picker.GetActor()
-        self.highlight_actor(actor)
+        self.highlight_actor(actor, WHITE)
 
         # print(self.point_picker.GetPickPosition())
         self.GetInteractor().Render()
         
-        # Run the default superclass function after custom behavior defined above.
-        self.OnMouseMove()
+        # Run the default superclass function after custom behavior defined above. Do not run if currently dragging.
+        if not self.is_dragging:
+            self.OnMouseMove()
     
     def pick(self) -> None:
         """Perform picking where a mouse event last occurred."""
@@ -106,24 +113,24 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
             position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0, self.GetDefaultRenderer()
         )
 
-    def highlight_actor(self, actor: vtk.vtkProp) -> None:
-        """Highlight the selected nodes actor."""
+    def highlight_actor(self, actor: vtk.vtkProp, color: tuple) -> None:
+        """Highlight the given nodes actor."""
         # Restore the original appearance of the previously selected actor.
         if self.previous_nodes_actor is not None:
             self.previous_nodes_actor.GetProperty().DeepCopy(self.previous_property)
-        
+
         # Highlight the actor, if one was selected.
         if actor:
             # Save the appearance of the currently selected actor.
             self.previous_property.DeepCopy(actor.GetProperty())
             # Change the appearance of the currently selected actor.
-            actor.GetProperty().SetAmbient(0.5)
+            actor.GetProperty().SetColor(color)
         
         # Store the current selected actor, even if it is None.
         self.previous_nodes_actor = actor
     
-    def highlight_point(self, actor: vtk.vtkProp, point: int) -> None:
-        """Highlight only the selected point on the control points actor."""
+    def highlight_point(self, actor: vtk.vtkProp, point: int, color: tuple) -> None:
+        """Highlight only the specific point on the given control points actor."""
         # Restore the original color of the previously selected point.
         if self.previous_cp_actor is not None and self.previous_point is not None:
             self.previous_cp_actor.GetMapper().GetInput().GetCellData().GetScalars().SetTuple(self.previous_point, self.previous_point_color)
@@ -135,7 +142,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
             colors = data.GetCellData().GetScalars()
             if colors:
                 self.previous_point_color = colors.GetTuple(point)
-                colors.SetTuple(point, [_*255 for _ in BLUE_LIGHT])
+                colors.SetTuple(point, [_*255 for _ in color])
                 data.GetCellData().SetScalars(colors)
                 data.Modified()
 

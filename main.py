@@ -34,6 +34,7 @@ class MainWindow(QMainWindow):
         # Create the overall layout of the window.
         layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         layout.setColumnStretch(0, 0)
         layout.setColumnStretch(1, 1)
         widget = QWidget()
@@ -54,7 +55,8 @@ class MainWindow(QMainWindow):
 
     def _make_sidebar(self) -> QWidget:
         """Return a sidebar widget."""
-        main_layout = QVBoxLayout()
+        widget = QWidget()
+        main_layout = QVBoxLayout(widget)
         main_layout.setAlignment(Qt.AlignTop)
 
         # Buttons for adding curves and surfaces.
@@ -101,9 +103,6 @@ class MainWindow(QMainWindow):
         button = QPushButton("Delete")
         button.clicked.connect(self.remove_current)
         main_layout.addWidget(button)
-
-        widget = QWidget()
-        widget.setLayout(main_layout)
 
         return widget
     
@@ -241,7 +240,6 @@ class MainWindow(QMainWindow):
     def _make_widget_camera_controls(self) -> QWidget:
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
 
         button = QPushButton("Top View")
         button.clicked.connect(self.set_camera_top)

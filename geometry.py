@@ -20,7 +20,7 @@ class Geometry(ABC):
 
     BEZIER = "Bézier"
     HERMITE = "Hermite"
-    BSPLINE = "B-Spline"
+    BSPLINE = "B-spline"
 
     # The number of instances of the class, incremented each time a new instance is created. Each subclass inherits this variable and increments it independently of other subclasses.
     instances = 0
@@ -70,9 +70,10 @@ class Geometry(ABC):
 
         self.actor_nodes = vtk.vtkActor()
         self.actor_nodes.SetMapper(mapper_nodes)
-        self.actor_nodes.GetProperty().SetColor(WHITE)
+        self.actor_nodes.GetProperty().SetColor(GRAY_80)
         self.actor_nodes.GetProperty().SetVertexVisibility(False)
         self.actor_nodes.GetProperty().SetEdgeVisibility(True)
+        self.actor_nodes.GetProperty().SetLighting(False)
     
     @classmethod
     def increment_instances(cls):
@@ -230,10 +231,19 @@ class Geometry(ABC):
     def __repr__(self) -> str:
         pass
 
+class Curve(Geometry):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.actor_nodes.GetProperty().SetRenderLinesAsTubes(True)
+        self.actor_nodes.GetProperty().SetLineWidth(5)
+
+class Surface(Geometry):
+    pass
+
 class BezierGeometry(Geometry):
     pass
 
-class BezierCurve(BezierGeometry):
+class BezierCurve(BezierGeometry, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
         return bezier.bezier_curve(cp, number_u)
@@ -255,7 +265,7 @@ class BezierCurve(BezierGeometry):
     def __repr__(self) -> str:
         return f"{self.BEZIER} curve #{self.instance} ({self.get_order_name(self.order)})"
 
-class BezierSurface(BezierGeometry):
+class BezierSurface(BezierGeometry, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         return bezier.bezier_surface(cp, number_u, number_v)
@@ -286,7 +296,7 @@ class HermiteGeometry(Geometry):
     def get_order(self):
         return 3
 
-class HermiteCurve(HermiteGeometry):
+class HermiteCurve(HermiteGeometry, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         pass
@@ -294,7 +304,7 @@ class HermiteCurve(HermiteGeometry):
     def __repr__(self) -> str:
         return f"{self.HERMITE} curve #{self.instance} ({self.get_order_name(self.order)})"
 
-class HermiteSurface(HermiteGeometry):
+class HermiteSurface(HermiteGeometry, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         pass
@@ -306,7 +316,7 @@ class BSplineGeometry(Geometry):
     def get_order(self) -> int:
         return self.order
 
-class BSplineCurve(BSplineGeometry):
+class BSplineCurve(BSplineGeometry, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, _, order: int) -> np.ndarray:
         return bspline.curve(cp, number_u, order)
@@ -314,7 +324,7 @@ class BSplineCurve(BSplineGeometry):
     def __repr__(self) -> str:
         return f"{self.BSPLINE} curve #{self.instance} ({self.get_order_name(self.order)})"
 
-class BSplineSurface(BSplineGeometry):
+class BSplineSurface(BSplineGeometry, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
         return bspline.surface(cp, number_u, number_v, order)
