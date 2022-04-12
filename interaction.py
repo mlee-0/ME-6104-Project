@@ -38,8 +38,11 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.AddObserver("LeftButtonPressEvent", self.left_mouse_press)
         self.AddObserver("LeftButtonReleaseEvent", self.left_mouse_release)
         self.AddObserver("MouseMoveEvent", self.mouse_move)
+        
         # Whether an actor is currently being dragged by the mouse.
         self.is_dragging = False
+        # The point ID currently being dragged.
+        self.dragged_point_id = None
     
     def add_to_pick_list(self, geometry):
         """Add the actors associated with the Geometry object to their corresponding pickers."""
@@ -55,9 +58,23 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
 
     def left_mouse_press(self, obj, event):
         self.pick()
-        # Clicked on an actor.
-        if self.point_picker.GetPointId() >= 0 or self.prop_picker.GetActor() is not None:
+
+        point_id = self.point_picker.GetPointId()
+        actor_cp = self.point_picker.GetActor()
+        actor_nodes = self.prop_picker.GetActor()
+        # A control point was selected.
+        if point_id >= 0:
+            self.gui.load_geometry(actor_cp, point_id)
             self.is_dragging = True
+            self.dragged_point_id = point_id
+        # A nodes actor was selected.
+        elif actor_nodes is not None:
+            self.gui.load_geometry(actor_nodes)
+            self.is_dragging = True
+        # No actor was selected.
+        else:
+            self.gui.load_geometry(None)
+            self.is_dragging = False
 
         self.GetInteractor().Render()
 
@@ -67,20 +84,8 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     def left_mouse_release(self, obj, event):
         self.pick()
         self.is_dragging = False
+        self.dragged_point_id = None
 
-        point = self.point_picker.GetPointId()
-        actor_cp = self.point_picker.GetActor()
-        actor_nodes = self.prop_picker.GetActor()
-        # A control point was selected.
-        if point >= 0:
-            self.gui.load_geometry(actor_cp, point)
-        # A nodes actor was selected.
-        elif actor_nodes is not None:
-            self.gui.load_geometry(actor_nodes)
-        # No actor was selected.
-        else:
-            self.gui.load_geometry(None)
-        
         # Run the default superclass function after custom behavior defined above.
         self.OnLeftButtonUp()
 
@@ -88,29 +93,32 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.pick()
 
         actor = self.point_picker.GetActor()
-        point = self.point_picker.GetPointId()
-        self.highlight_point(actor, point, BLUE_LIGHT)
+        point_id = self.point_picker.GetPointId()
+        self.highlight_point(actor, point_id, BLUE_LIGHT)
         
         actor = self.prop_picker.GetActor()
         self.highlight_actor(actor, WHITE)
 
-        # print(self.point_picker.GetPickPosition())
         self.GetInteractor().Render()
         
-        # Run the default superclass function after custom behavior defined above. Do not run if currently dragging.
+        # Run the default superclass function after custom behavior defined above.
         if not self.is_dragging:
             self.OnMouseMove()
+        # If dragging, update the position of the point being dragged.
+        elif self.dragged_point_id is not None:
+            position = self.point_picker.GetPickPosition()
+            self.gui.selected_geometry.update_single_cp(position, self.dragged_point_id)
     
     def pick(self) -> None:
         """Perform picking where a mouse event last occurred."""
         # Get the mouse location in display coordinates.
-        position = self.GetInteractor().GetEventPosition()
+        position = [_*self.DISPLAY_SCALE for _ in self.GetInteractor().GetEventPosition()]
         # Perform picking.
         self.point_picker.Pick(
-            position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0, self.GetDefaultRenderer()
+            position[0], position[1], 0, self.GetDefaultRenderer()
         )
         self.prop_picker.Pick(
-            position[0]*self.DISPLAY_SCALE, position[1]*self.DISPLAY_SCALE, 0, self.GetDefaultRenderer()
+            position[0], position[1], 0, self.GetDefaultRenderer()
         )
 
     def highlight_actor(self, actor: vtk.vtkProp, color: tuple) -> None:

@@ -58,7 +58,7 @@ class Geometry(ABC):
         mapper_cp = vtk.vtkGlyph3DMapper()
         mapper_cp.SetInputData(self.data_cp)
         source = vtk.vtkSphereSource()
-        source.SetRadius(0.1)
+        source.SetRadius(0.25)
         mapper_cp.SetSourceConnection(source.GetOutputPort())
 
         mapper_nodes = vtk.vtkDataSetMapper()
@@ -106,6 +106,13 @@ class Geometry(ABC):
         else:
             self.update_data()
     
+    def update_single_cp(self, point: np.ndarray, point_id: int) -> None:
+        """Update the control point with the given point ID."""
+        i, j = self.get_point_indices(point_id)
+        self.cp[:, i, j] = point
+        self.update()
+        self.update_data()
+
     @staticmethod
     @abstractmethod
     def calculate() -> np.ndarray:
@@ -136,7 +143,7 @@ class Geometry(ABC):
         return string
     
     def update_data(self) -> None:
-        """Update objects used to store point data. Used when the numbers of control points or nodes do not change."""
+        """Update data stored in VTK objects. Used when the numbers of control points or nodes do not change."""
         # Update control points.
         k = 0
         for i in range(self.cp.shape[1]):
@@ -156,7 +163,7 @@ class Geometry(ABC):
         self.actor_nodes.GetMapper().Update()
     
     def reset_data(self) -> None:
-        """Create new objects used to store point data. Used when changing the number of control points or nodes, which requires new vtkPoints objects to be created."""
+        """Create new VTK objects to store data. Used when changing the number of control points or nodes, which requires new vtkPoints objects to be created."""
 
         del self.points_cp, self.points_nodes, self.vertices_cp
 
@@ -246,7 +253,7 @@ class BezierGeometry(Geometry):
 class BezierCurve(BezierGeometry, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
-        return bezier.bezier_curve(cp, number_u)
+        return bezier.curve(cp, number_u)
     
     def get_order(self) -> int:
         return self.cp.shape[1] - 1
@@ -268,7 +275,7 @@ class BezierCurve(BezierGeometry, Curve):
 class BezierSurface(BezierGeometry, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
-        return bezier.bezier_surface(cp, number_u, number_v)
+        return bezier.surface(cp, number_u, number_v)
     
     def get_order(self) -> Tuple[int, int]:
         return (self.cp.shape[1] - 1, self.cp.shape[2] - 1)

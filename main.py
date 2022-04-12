@@ -113,9 +113,9 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.field_x = QDoubleSpinBox()
-        self.field_x.setMaximum(100)
-        self.field_x.setMinimum(-100)
-        self.field_x.setSingleStep(0.1)
+        self.field_x.setMaximum(1000)
+        self.field_x.setMinimum(-1000)
+        self.field_x.setSingleStep(1)
         self.field_x.setDecimals(1)
         self.field_x.setAlignment(Qt.AlignRight)
         self.field_x.valueChanged.connect(self.update_cp)
@@ -125,9 +125,9 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(layout)
         
         self.field_y = QDoubleSpinBox()
-        self.field_y.setMaximum(100)
-        self.field_y.setMinimum(-100)
-        self.field_y.setSingleStep(0.1)
+        self.field_y.setMaximum(1000)
+        self.field_y.setMinimum(-1000)
+        self.field_y.setSingleStep(1)
         self.field_y.setDecimals(1)
         self.field_y.setAlignment(Qt.AlignRight)
         self.field_y.valueChanged.connect(self.update_cp)
@@ -137,9 +137,9 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(layout)
         
         self.field_z = QDoubleSpinBox()
-        self.field_z.setMaximum(100)
-        self.field_z.setMinimum(-100)
-        self.field_z.setSingleStep(0.1)
+        self.field_z.setMaximum(1000)
+        self.field_z.setMinimum(-1000)
+        self.field_z.setSingleStep(1)
         self.field_z.setDecimals(1)
         self.field_z.setAlignment(Qt.AlignRight)
         self.field_z.valueChanged.connect(self.update_cp)
@@ -300,8 +300,8 @@ class MainWindow(QMainWindow):
         number_u = 10
 
         cp = np.vstack((
-            np.arange(order+1),  # x-coordinates
-            np.arange(order+1),  # y-coordinates
+            np.linspace(0, 10, order+1),  # x-coordinates
+            np.linspace(0, 10, order+1),  # y-coordinates
             np.zeros(order+1),  # z-coordinates
         ))
         cp = np.expand_dims(cp, 2)
@@ -319,8 +319,8 @@ class MainWindow(QMainWindow):
         number_cp = 3
         number_u = 10
         cp = np.vstack((
-            np.arange(number_cp),  # x-coordinates
-            np.arange(number_cp),  # y-coordinates
+            np.linspace(0, 10, number_cp),  # x-coordinates
+            np.linspace(0, 10, number_cp),  # y-coordinates
             np.zeros(number_cp),  # z-coordinates
         ))
         cp = np.expand_dims(cp, 2)
@@ -335,7 +335,7 @@ class MainWindow(QMainWindow):
         number_v = 10
 
         cp = np.dstack(
-            np.meshgrid(np.arange(order+1), np.arange(order+1)) + [np.zeros((order+1,)*2)]
+            np.meshgrid(np.linspace(0, 10, order+1), np.linspace(0, 10, order+1)) + [np.zeros((order+1,)*2)]
         )
         cp = cp.transpose((2, 0, 1))
 
@@ -355,7 +355,7 @@ class MainWindow(QMainWindow):
         number_v = 10
 
         cp = np.dstack(
-            np.meshgrid(np.arange(number_cp_u), np.arange(number_cp_v)) + [np.zeros((number_cp_u,number_cp_v))]
+            np.meshgrid(np.linspace(0, 10, number_cp_u), np.linspace(0, 10, number_cp_v)) + [np.zeros((number_cp_u,number_cp_v))]
         )
         cp = cp.transpose((2, 0, 1))
 
