@@ -123,6 +123,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         elif self.dragged_point_id is not None:
             position = self.point_picker.GetPickPosition()
             self.gui.selected_geometry.update_single_cp(position, self.dragged_point_id)
+            self.gui.load_geometry(self.selected_cp_actor, self.dragged_point_id)
     
     def pick(self) -> None:
         """Perform picking where a mouse event last occurred."""
