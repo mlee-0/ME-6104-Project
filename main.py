@@ -2,15 +2,9 @@
 Run this script to start the GUI.
 """
 
-import random
 import sys
 
-# from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-# from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-# import matplotlib.pyplot as plt
-# from mpl_toolkits import mplot3d
 import numpy as np
-from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout

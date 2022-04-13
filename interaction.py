@@ -7,6 +7,7 @@ import sys
 import vtk
 
 from colors import *
+from geometry import Geometry
 
 
 class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
@@ -27,12 +28,14 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.prop_picker.SetPickFromList(True)
         self.point_picker.SetPickFromList(True)
 
-        # The previously picked objects. Used to restore appearances after an actor is no longer selected.
-        self.previous_nodes_actor = None
-        self.previous_property = vtk.vtkProperty()
+        # The previously picked actors. Used to restore appearances after an actor is no longer selected.
         self.previous_cp_actor = None
-        self.previous_point = None
-        self.previous_point_color = None
+        self.previous_nodes_actor = None
+        self.previous_point_id = None
+        # The currently selected actor.
+        self.selected_cp_actor = None
+        self.selected_nodes_actor = None
+        self.selected_point_id = None
 
         # Set functions to be called when mouse events occur.
         self.AddObserver("LeftButtonPressEvent", self.left_mouse_press)
@@ -59,22 +62,34 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     def left_mouse_press(self, obj, event):
         self.pick()
 
+        # Remove highlighting from previously selected actor.
+        if self.selected_cp_actor:
+            self.selected_cp_actor.GetMapper().GetInput().GetCellData().GetScalars().SetTuple(self.selected_point_id, Geometry.color_default_cp)
+            self.selected_cp_actor.GetMapper().GetInput().Modified()
+        if self.selected_nodes_actor:
+            self.selected_nodes_actor.GetProperty().DeepCopy(Geometry.property_default_nodes)
+
         point_id = self.point_picker.GetPointId()
         actor_cp = self.point_picker.GetActor()
         actor_nodes = self.prop_picker.GetActor()
-        # A control point was selected.
-        if point_id >= 0:
-            self.gui.load_geometry(actor_cp, point_id)
-            self.is_dragging = True
-            self.dragged_point_id = point_id
-        # A nodes actor was selected.
-        elif actor_nodes is not None:
-            self.gui.load_geometry(actor_nodes)
-            self.is_dragging = True
         # No actor was selected.
-        else:
+        if actor_cp is None and actor_nodes is None:
             self.gui.load_geometry(None)
             self.is_dragging = False
+            self.selected_cp_actor = self.selected_nodes_actor = self.selected_point_id = None
+        else:
+            # A control point was selected.
+            if point_id >= 0:
+                self.gui.load_geometry(actor_cp, point_id)
+                self.dragged_point_id = point_id
+                self.selected_point_id = point_id
+                self.selected_cp_actor, self.selected_nodes_actor = actor_cp, None
+            # A nodes actor was selected.
+            elif actor_nodes is not None:
+                self.gui.load_geometry(actor_nodes)
+                self.selected_cp_actor, self.selected_nodes_actor = None, actor_nodes
+            
+            self.is_dragging = True
 
         self.GetInteractor().Render()
 
@@ -94,10 +109,10 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
 
         actor = self.point_picker.GetActor()
         point_id = self.point_picker.GetPointId()
-        self.highlight_point(actor, point_id, BLUE_LIGHT)
+        self.highlight_point(actor, point_id)
         
         actor = self.prop_picker.GetActor()
-        self.highlight_actor(actor, WHITE)
+        self.highlight_actor(actor)
 
         self.GetInteractor().Render()
         
@@ -121,39 +136,36 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
             position[0], position[1], 0, self.GetDefaultRenderer()
         )
 
-    def highlight_actor(self, actor: vtk.vtkProp, color: tuple) -> None:
+    def highlight_actor(self, actor: vtk.vtkProp) -> None:
         """Highlight the given nodes actor."""
-        # Restore the original appearance of the previously selected actor.
-        if self.previous_nodes_actor is not None:
-            self.previous_nodes_actor.GetProperty().DeepCopy(self.previous_property)
+        # Restore the original appearance of the previous actor.
+        if self.previous_nodes_actor is not None and self.previous_nodes_actor is not self.selected_nodes_actor:
+            self.previous_nodes_actor.GetProperty().DeepCopy(Geometry.property_default_nodes)
 
-        # Highlight the actor, if one was selected.
+        # Highlight the actor.
         if actor:
-            # Save the appearance of the currently selected actor.
-            self.previous_property.DeepCopy(actor.GetProperty())
-            # Change the appearance of the currently selected actor.
-            actor.GetProperty().SetColor(color)
+            # Change the appearance of the current actor.
+            actor.GetProperty().DeepCopy(Geometry.property_highlight_nodes)
         
-        # Store the current selected actor, even if it is None.
+        # Store the current actor, even if it is None.
         self.previous_nodes_actor = actor
     
-    def highlight_point(self, actor: vtk.vtkProp, point: int, color: tuple) -> None:
+    def highlight_point(self, actor: vtk.vtkProp, point: int) -> None:
         """Highlight only the specific point on the given control points actor."""
-        # Restore the original color of the previously selected point.
-        if self.previous_cp_actor is not None and self.previous_point is not None:
-            self.previous_cp_actor.GetMapper().GetInput().GetCellData().GetScalars().SetTuple(self.previous_point, self.previous_point_color)
+        # Restore the original color of the previous point.
+        if self.previous_cp_actor is not None and self.previous_point_id is not None and self.previous_point_id is not self.selected_point_id:
+            self.previous_cp_actor.GetMapper().GetInput().GetCellData().GetScalars().SetTuple(self.previous_point_id, Geometry.color_default_cp)
             self.previous_cp_actor.GetMapper().GetInput().Modified()
         
-        # Highlight the point, if one was selected.
+        # Highlight the point.
         if actor:
             data = actor.GetMapper().GetInput()
             colors = data.GetCellData().GetScalars()
             if colors:
-                self.previous_point_color = colors.GetTuple(point)
-                colors.SetTuple(point, [_*255 for _ in color])
+                colors.SetTuple(point, Geometry.color_highlight_cp)
                 data.GetCellData().SetScalars(colors)
                 data.Modified()
 
-        # Save the currently selected point and corresponding actor. If no point was selected (-1), save None.
+        # Save the current point and corresponding actor. If no point was selected (-1), save None.
         self.previous_cp_actor = actor
-        self.previous_point = point if point >= 0 else None
+        self.previous_point_id = point if point >= 0 else None

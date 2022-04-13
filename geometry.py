@@ -25,6 +25,23 @@ class Geometry(ABC):
     # The number of instances of the class, incremented each time a new instance is created. Each subclass inherits this variable and increments it independently of other subclasses.
     instances = 0
 
+    # Default color of control point actors.
+    color_default_cp = [_*255 for _ in BLUE]
+    color_highlight_cp = [_*255 for _ in BLUE_LIGHT]
+    # Property object that defines the appearance of nodes actors.
+    property_default_nodes = vtk.vtkProperty()
+    property_default_nodes.SetColor(GRAY_80)
+    property_default_nodes.SetEdgeColor(GRAY_20)
+    property_default_nodes.SetVertexVisibility(False)
+    property_default_nodes.SetEdgeVisibility(True)
+    property_default_nodes.SetLighting(False)
+    property_highlight_nodes = vtk.vtkProperty()
+    property_highlight_nodes.SetColor(WHITE)
+    property_highlight_nodes.SetEdgeColor(BLACK)
+    property_highlight_nodes.SetVertexVisibility(False)
+    property_highlight_nodes.SetEdgeVisibility(True)
+    property_highlight_nodes.SetLighting(False)
+
     def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None, order: int = None):
         self.cp = cp
         self.number_u = number_u
@@ -70,10 +87,7 @@ class Geometry(ABC):
 
         self.actor_nodes = vtk.vtkActor()
         self.actor_nodes.SetMapper(mapper_nodes)
-        self.actor_nodes.GetProperty().SetColor(GRAY_80)
-        self.actor_nodes.GetProperty().SetVertexVisibility(False)
-        self.actor_nodes.GetProperty().SetEdgeVisibility(True)
-        self.actor_nodes.GetProperty().SetLighting(False)
+        self.actor_nodes.GetProperty().DeepCopy(Geometry.property_default_nodes)
     
     @classmethod
     def increment_instances(cls):
@@ -198,7 +212,7 @@ class Geometry(ABC):
         colors = vtk.vtkUnsignedCharArray()
         colors.SetNumberOfComponents(3)
         for tuple_id in self.ids_cp:
-            colors.InsertTuple(tuple_id, [_*255 for _ in BLUE])
+            colors.InsertTuple(tuple_id, Geometry.color_default_cp)
         self.data_cp.GetCellData().SetScalars(colors)
         self.data_cp.Modified()
 
