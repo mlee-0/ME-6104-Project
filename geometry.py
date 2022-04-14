@@ -334,7 +334,8 @@ class HermiteGeometry(Geometry):
 class HermiteCurve(HermiteGeometry, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
-        return np.expand_dims(hermite.HermiteCurve(cp, number_u), axis=2)
+        # Pass a copy of the array to prevent modifying the original array inside this function.
+        return hermite.HermiteCurve(cp.copy(), number_u)
 
     def __repr__(self) -> str:
         return f"{self.HERMITE} curve #{self.instance} ({self.get_order_name(self.order)})"
@@ -342,7 +343,8 @@ class HermiteCurve(HermiteGeometry, Curve):
 class HermiteSurface(HermiteGeometry, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
-        return hermite.HermiteSurface(cp, number_u, number_v)
+        # Pass a copy of the array to prevent modifying the original array inside this function.
+        return hermite.HermiteSurface(cp.copy(), number_u, number_v)
 
     def __repr__(self) -> str:
         return f"{self.HERMITE} surface #{self.instance} ({self.get_order_name(self.order)})"

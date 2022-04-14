@@ -3,16 +3,23 @@ import numpy as np
 
 # Function to visualize a Hermite Curve
 def HermiteCurve(p, num):
+    # Calculate the starting and ending tangents.
+    p[:, 2:4] -= p[:, 0:2]
+
     points = np.linspace(0, 1, num)
     m = [[2, -2, 1, 1], [-3, 3, -2, -1], [0, 0, 1, 0], [1, 0, 0, 0]]
-    curve = np.zeros((len(p), num))
+    curve = np.zeros((len(p), num, 1))
     for i in range(len(points)):
         for j in range(len(p)):
-            curve[j][i] = np.matmul(np.matmul([points[i] ** 3, points[i] ** 2, points[i], 1], m), p[j])
+            curve[j, i, 0] = np.matmul(np.matmul([points[i] ** 3, points[i] ** 2, points[i], 1], m), p[j])
     return curve
 
 # Function to visualize a Hermite Surface
 def HermiteSurface(p, num_u, num_v):
+    # Calculate the starting and ending tangents.
+    p[:, 0:2, 2:4] -= p[:, 0:2, 0:2]
+    p[:, 2:4, 0:2] -= p[:, 0:2, 0:2]
+
     points_u = np.linspace(0, 1, num_u)
     points_v = np.linspace(0, 1, num_v)
     surface = np.zeros((len(p), num_u, num_v))
