@@ -10,6 +10,7 @@ import numpy as np
 import vtk
 
 import bezier
+import hermite
 import bspline
 from colors import *
 
@@ -333,7 +334,7 @@ class HermiteGeometry(Geometry):
 class HermiteCurve(HermiteGeometry, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
-        pass
+        return np.expand_dims(hermite.HermiteCurve(cp, number_u), axis=2)
 
     def __repr__(self) -> str:
         return f"{self.HERMITE} curve #{self.instance} ({self.get_order_name(self.order)})"
@@ -341,7 +342,7 @@ class HermiteCurve(HermiteGeometry, Curve):
 class HermiteSurface(HermiteGeometry, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
-        pass
+        return hermite.HermiteSurface(cp, number_u, number_v)
 
     def __repr__(self) -> str:
         return f"{self.HERMITE} surface #{self.instance} ({self.get_order_name(self.order)})"

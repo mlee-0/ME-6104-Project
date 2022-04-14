@@ -27,7 +27,3 @@ def surface(cp, num_u, num_v):
         points[i, ...] = M_u @ cp[i, ...] @ M_v
     
     return points
-
-# from timeit import timeit
-# print(timeit("np.empty((100, 100))", setup="import numpy as np"))
-# print(timeit("np.zeros((100, 100))", setup="import numpy as np"))

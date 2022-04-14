@@ -305,7 +305,12 @@ class MainWindow(QMainWindow):
 
     def make_hermite_curve(self) -> None:
         """Add a preset Hermite curve to the visualizer."""
-        pass
+        number_u = 10
+
+        cp = np.array([[[0, 0, 0], [10, 10, 0], [10, 0, 0], [20, 10, 0]]]).transpose()
+
+        geometry = HermiteCurve(cp, number_u)
+        self.add_geometry(geometry)
 
     def make_bspline_curve(self) -> None:
         """Add a preset B-spline curve to the visualizer."""
@@ -338,7 +343,18 @@ class MainWindow(QMainWindow):
 
     def make_hermite_surface(self) -> None:
         """Add a preset Hermite surface to the visualizer."""
-        pass
+        number_u = 10
+        number_v = 10
+
+        cp = np.array([
+            [[0,0,0], [0,10,0], [0,1,0], [0,-1,0]],
+            [[10,0,0], [10,10,0], [0,1,0], [0,-1,0]],
+            [[1,0,0], [1,0,0], [0,0,1], [0,0,1]],
+            [[-1,0,0], [-1,0,0], [0,0,1], [0,0,1]],
+        ]).transpose((2, 0, 1))
+
+        geometry = HermiteSurface(cp, number_u, number_v)
+        self.add_geometry(geometry)
     
     def make_bspline_surface(self) -> None:
         """Add a preset B-spline surface to the visualizer."""
