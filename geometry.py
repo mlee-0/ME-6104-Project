@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from typing import Tuple
 
 import numpy as np
-from scipy import interpolate
 import vtk
 
 import bezier
@@ -235,19 +234,23 @@ class Geometry(ABC):
     @staticmethod
     def resize_cp_2d(cp: np.ndarray, number_u: int, number_v: int) -> np.ndarray:
         """Return a new control points array with a different number of control points using 2D interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
-        number_u, number_v = number_v, number_u
-        cp_new = np.empty((3, number_u, number_v))
-        for i in range(3):
-            f = interpolate.interp2d(
-                np.linspace(0, 1, cp.shape[2]),
-                np.linspace(0, 1, cp.shape[1]),
-                cp[i, ...],
-            )
-            cp_new[i, ...] = f(
-                np.linspace(0, 1, number_v),
-                np.linspace(0, 1, number_u),
-            )
-        return cp_new
+        cp_1 = np.empty((3, cp.shape[1], number_u))
+        for i in range(cp_1.shape[1]):
+            for xyz in range(3):
+                cp_1[xyz, i, :] = np.interp(
+                    np.linspace(0, 1, number_u),
+                    np.linspace(0, 1, cp.shape[2]),
+                    cp[xyz, i, :],
+                )
+        cp_2 = np.empty((3, number_v, number_u))
+        for j in range(cp_2.shape[2]):
+            for xyz in range(3):
+                cp_2[xyz, :, j] = np.interp(
+                    np.linspace(0, 1, number_v),
+                    np.linspace(0, 1, cp_1.shape[1]),
+                    cp_1[xyz, :, j],
+                )
+        return cp_2
     
     def get_point_indices(self, point_id: int) -> Tuple[int, int]:
         """Return a tuple of indices to the control points array corresponding to the specified point ID. Each point's point ID is assumed to start from 0 and be numbered based on the order it was added."""
@@ -267,11 +270,11 @@ class Geometry(ABC):
     
     def get_number_cp_u(self) -> int:
         """Return the number of control points along u."""
-        return self.cp.shape[1]
+        return self.cp.shape[2]
     
     def get_number_cp_v(self) -> int:
         """Return the number of control points along v."""
-        return self.cp.shape[2]
+        return self.cp.shape[1]
 
     def get_actors(self) -> Tuple[vtk.vtkActor]:
         """Return a tuple of all actors associated with this geometry."""
