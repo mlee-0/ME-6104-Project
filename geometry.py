@@ -204,7 +204,7 @@ class Geometry(ABC):
                 self.ids_nodes.append(
                     self.points_nodes.InsertNextPoint(self.nodes[:, i, j])
                 )
-        self.data_nodes.SetDimensions(self.nodes.shape[1], self.nodes.shape[2], 1)
+        self.data_nodes.SetDimensions(self.nodes.shape[2], self.nodes.shape[1], 1)
         self.data_nodes.SetPoints(self.points_nodes)
 
         # Add an array of colors to control point data. Allows one control point to have a different color from the rest when it is selected.
