@@ -234,21 +234,21 @@ class Geometry(ABC):
     @staticmethod
     def resize_cp_2d(cp: np.ndarray, number_u: int, number_v: int) -> np.ndarray:
         """Return a new control points array with a different number of control points using 2D interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
-        cp_1 = np.empty((3, cp.shape[1], number_u))
-        for i in range(cp_1.shape[1]):
+        cp_1 = np.empty((3, number_u, cp.shape[2]))
+        for j in range(cp_1.shape[2]):
             for xyz in range(3):
-                cp_1[xyz, i, :] = np.interp(
+                cp_1[xyz, :, j] = np.interp(
                     np.linspace(0, 1, number_u),
-                    np.linspace(0, 1, cp.shape[2]),
-                    cp[xyz, i, :],
+                    np.linspace(0, 1, cp.shape[1]),
+                    cp[xyz, :, j],
                 )
-        cp_2 = np.empty((3, number_v, number_u))
-        for j in range(cp_2.shape[2]):
+        cp_2 = np.empty((3, number_u, number_v))
+        for i in range(cp_2.shape[1]):
             for xyz in range(3):
-                cp_2[xyz, :, j] = np.interp(
+                cp_2[xyz, i, :] = np.interp(
                     np.linspace(0, 1, number_v),
-                    np.linspace(0, 1, cp_1.shape[1]),
-                    cp_1[xyz, :, j],
+                    np.linspace(0, 1, cp_1.shape[2]),
+                    cp_1[xyz, i, :],
                 )
         return cp_2
     

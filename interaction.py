@@ -22,7 +22,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         # Create the picker objects used to select geometry on the screen. A vtkCellPicker selects nodes actors, and a vtkPointPicker selects a single point on control points actors.
         self.nodes_picker = vtk.vtkCellPicker()
         self.point_picker = vtk.vtkPointPicker()
-        # Initialize the list of actors from which each picker picks from. This allows the prop picker to only pick nodes actors and the point picker to only pick control point actors. Actors must be added to these lists when they are created.
+        # Initialize the list of actors from which each picker picks from. This allows one picker to only pick nodes actors and one picker to only pick control points actors. Actors must be added to these lists when they are created.
         self.nodes_picker.InitializePickList()
         self.point_picker.InitializePickList()
         self.nodes_picker.SetPickFromList(True)
