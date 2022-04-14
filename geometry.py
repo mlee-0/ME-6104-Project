@@ -258,12 +258,12 @@ class Geometry(ABC):
             return point_id, 0
         # This geometry is a surface.
         else:
-            return point_id // self.cp.shape[1], point_id % self.cp.shape[2]
+            return point_id // self.cp.shape[2], point_id % self.cp.shape[2]
     
     def get_point(self, point_id: int) -> np.ndarray:
         """Return an array of the control point corresponding to the specified point ID."""
-        indices = self.get_point_indices(point_id)
-        return self.cp[:, indices[0], indices[1]]
+        i, j = self.get_point_indices(point_id)
+        return self.cp[:, i, j]
     
     def get_number_cp_u(self) -> int:
         """Return the number of control points along u."""
