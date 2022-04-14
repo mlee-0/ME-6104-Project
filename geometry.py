@@ -216,9 +216,38 @@ class Geometry(ABC):
         self.data_cp.GetCellData().SetScalars(colors)
         self.data_cp.Modified()
 
-    def change_number_cp(self):
-        """Return a new control points array with a different number of control points, or return None if the number of control points cannot be changed."""
-        return None
+    @abstractmethod
+    def resize_cp(self, number_u: int, number_v: int):
+        """Return a new control points array with a different number of control points."""
+    
+    @staticmethod
+    def resize_cp_1d(cp: np.ndarray, number_u: int) -> np.ndarray:
+        """Return a new control points array with a different number of control points using interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
+        cp_new = np.empty((3, number_u, 1))
+        for i in range(3):
+            cp_new[i, :, 0] = np.interp(
+                np.linspace(0, 1, number_u),
+                np.linspace(0, 1, cp.shape[1]),
+                cp[i, :, 0],
+                )
+        return cp_new
+    
+    @staticmethod
+    def resize_cp_2d(cp: np.ndarray, number_u: int, number_v: int) -> np.ndarray:
+        """Return a new control points array with a different number of control points using 2D interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
+        number_u, number_v = number_v, number_u
+        cp_new = np.empty((3, number_u, number_v))
+        for i in range(3):
+            f = interpolate.interp2d(
+                np.linspace(0, 1, cp.shape[2]),
+                np.linspace(0, 1, cp.shape[1]),
+                cp[i, ...],
+            )
+            cp_new[i, ...] = f(
+                np.linspace(0, 1, number_v),
+                np.linspace(0, 1, number_u),
+            )
+        return cp_new
     
     def get_point_indices(self, point_id: int) -> Tuple[int, int]:
         """Return a tuple of indices to the control points array corresponding to the specified point ID. Each point's point ID is assumed to start from 0 and be numbered based on the order it was added."""
@@ -257,9 +286,13 @@ class Curve(Geometry):
         super().__init__(*args, **kwargs)
         self.actor_nodes.GetProperty().SetRenderLinesAsTubes(True)
         self.actor_nodes.GetProperty().SetLineWidth(5)
+    
+    def resize_cp(self, number_u: int, _) -> np.ndarray:
+        return Geometry.resize_cp_1d(self.cp, number_u)
 
 class Surface(Geometry):
-    pass
+    def resize_cp(self, number_u: int, number_v: int) -> np.ndarray:
+        return Geometry.resize_cp_2d(self.cp, number_u, number_v)
 
 class BezierGeometry(Geometry):
     pass
@@ -272,17 +305,6 @@ class BezierCurve(BezierGeometry, Curve):
     def get_order(self) -> int:
         return self.cp.shape[1] - 1
     
-    def change_number_cp(self, number_u: int, _) -> np.ndarray:
-        """Return a new control points array with a different number of control points using interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
-        cp = np.empty((3, number_u, 1))
-        for i in range(3):
-            cp[i, :, 0] = np.interp(
-                np.linspace(0, 1, number_u),
-                np.linspace(0, 1, self.cp.shape[1]),
-                self.cp[i, :, 0],
-                )
-        return cp
-    
     def __repr__(self) -> str:
         return f"{self.BEZIER} curve #{self.instance} ({self.get_order_name(self.order)})"
 
@@ -294,28 +316,16 @@ class BezierSurface(BezierGeometry, Surface):
     def get_order(self) -> Tuple[int, int]:
         return (self.cp.shape[1] - 1, self.cp.shape[2] - 1)
     
-    def change_number_cp(self, number_u: int, number_v: int) -> np.ndarray:
-        """Return a new control points array with a different number of control points using 2D interpolation on the existing control points. This preserves the overall shape of the geometry the user previously created."""
-        number_u, number_v = number_v, number_u
-        cp = np.empty((3, number_u, number_v))
-        for i in range(3):
-            f = interpolate.interp2d(
-                np.linspace(0, 1, self.cp.shape[2]),
-                np.linspace(0, 1, self.cp.shape[1]),
-                self.cp[i, ...],
-            )
-            cp[i, ...] = f(
-                np.linspace(0, 1, number_v),
-                np.linspace(0, 1, number_u),
-            )
-        return cp
-    
     def __repr__(self) -> str:
         return f"{self.BEZIER} surface #{self.instance} ({self.get_order_name(self.order)})"
 
 class HermiteGeometry(Geometry):
     def get_order(self):
         return 3
+    
+    def resize_cp(self, *args, **kwargs) -> None:
+        """Return None because Hermite geometries have a fixed number of control points."""
+        return None
 
 class HermiteCurve(HermiteGeometry, Curve):
     @staticmethod
