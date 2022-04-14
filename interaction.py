@@ -19,13 +19,13 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     def __init__(self, gui):
         self.gui = gui
 
-        # Create the picker objects used to select geometry on the screen. A vtkPropPicker selects nodes actors, and a vtkPointPicker selects a single point on control points actors.
-        self.prop_picker = vtk.vtkPropPicker()
+        # Create the picker objects used to select geometry on the screen. A vtkCellPicker selects nodes actors, and a vtkPointPicker selects a single point on control points actors.
+        self.nodes_picker = vtk.vtkCellPicker()
         self.point_picker = vtk.vtkPointPicker()
         # Initialize the list of actors from which each picker picks from. This allows the prop picker to only pick nodes actors and the point picker to only pick control point actors. Actors must be added to these lists when they are created.
-        self.prop_picker.InitializePickList()
+        self.nodes_picker.InitializePickList()
         self.point_picker.InitializePickList()
-        self.prop_picker.SetPickFromList(True)
+        self.nodes_picker.SetPickFromList(True)
         self.point_picker.SetPickFromList(True)
 
         # The previously picked actors. Used to restore appearances after an actor is no longer selected.
@@ -50,13 +50,13 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     def add_to_pick_list(self, geometry):
         """Add the actors associated with the Geometry object to their corresponding pickers."""
         actor_cp, actor_nodes = geometry.get_actors()
-        self.prop_picker.AddPickList(actor_nodes)
+        self.nodes_picker.AddPickList(actor_nodes)
         self.point_picker.AddPickList(actor_cp)
     
     def remove_from_pick_list(self, geometry):
         """Remove the actors associated with the Geometry object from their corresponding pickers."""
         actor_cp, actor_nodes = geometry.get_actors()
-        self.prop_picker.DeletePickList(actor_nodes)
+        self.nodes_picker.DeletePickList(actor_nodes)
         self.point_picker.DeletePickList(actor_cp)
 
     def left_mouse_press(self, obj, event):
@@ -71,7 +71,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
 
         point_id = self.point_picker.GetPointId()
         actor_cp = self.point_picker.GetActor()
-        actor_nodes = self.prop_picker.GetActor()
+        actor_nodes = self.nodes_picker.GetActor()
         # No actor was selected.
         if actor_cp is None and actor_nodes is None:
             self.gui.load_geometry(None)
@@ -111,7 +111,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         point_id = self.point_picker.GetPointId()
         self.highlight_point(actor, point_id)
         
-        actor = self.prop_picker.GetActor()
+        actor = self.nodes_picker.GetActor()
         self.highlight_actor(actor)
 
         self.GetInteractor().Render()
@@ -121,7 +121,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
             self.OnMouseMove()
         # If dragging, update the position of the point being dragged.
         elif self.dragged_point_id is not None:
-            position = self.point_picker.GetPickPosition()
+            position = self.nodes_picker.GetPickPosition()
             self.gui.selected_geometry.update_single_cp(position, self.dragged_point_id)
             self.gui.load_geometry(self.selected_cp_actor, self.dragged_point_id)
     
@@ -133,7 +133,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.point_picker.Pick(
             position[0], position[1], 0, self.GetDefaultRenderer()
         )
-        self.prop_picker.Pick(
+        self.nodes_picker.Pick(
             position[0], position[1], 0, self.GetDefaultRenderer()
         )
 
