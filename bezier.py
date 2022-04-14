@@ -15,15 +15,19 @@ def curve(cp, num):
 
     return points.transpose()
 
-def surface(cpp, num_u, num_v):
+def surface(cp, num_u, num_v):
     u = np.linspace(0, 1, num_u)
     v = np.linspace(0, 1, num_v)
-    n_u = cpp.shape[1] - 1
-    n_v = cpp.shape[2] - 1
+    n_u = cp.shape[1] - 1
+    n_v = cp.shape[2] - 1
     M_u = np.array([bernstein_poly(u, k, n_u) for k in range(0, n_u+1)]).transpose()
     M_v = np.array([bernstein_poly(v, k, n_v) for k in range(0, n_v+1)])
-    points = np.zeros((3, num_u, num_v))
+    points = np.empty((3, num_u, num_v))
     for i in range(points.shape[0]):
-        points[i, ...] = M_u @ cpp[i, ...] @ M_v
+        points[i, ...] = M_u @ cp[i, ...] @ M_v
     
     return points
+
+# from timeit import timeit
+# print(timeit("np.empty((100, 100))", setup="import numpy as np"))
+# print(timeit("np.zeros((100, 100))", setup="import numpy as np"))
