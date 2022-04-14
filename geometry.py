@@ -72,11 +72,8 @@ class Geometry(ABC):
         self.reset_data()
 
         # Create mappers used for actors.
-        mapper_cp = vtk.vtkGlyph3DMapper()
+        mapper_cp = vtk.vtkDataSetMapper()
         mapper_cp.SetInputData(self.data_cp)
-        source = vtk.vtkSphereSource()
-        source.SetRadius(0.25)
-        mapper_cp.SetSourceConnection(source.GetOutputPort())
 
         mapper_nodes = vtk.vtkDataSetMapper()
         mapper_nodes.SetInputData(self.data_nodes)
@@ -84,6 +81,8 @@ class Geometry(ABC):
         # Create actors used to display geometry.
         self.actor_cp = vtk.vtkActor()
         self.actor_cp.SetMapper(mapper_cp)
+        self.actor_cp.GetProperty().SetRenderPointsAsSpheres(True)
+        self.actor_cp.GetProperty().SetPointSize(15)
 
         self.actor_nodes = vtk.vtkActor()
         self.actor_nodes.SetMapper(mapper_nodes)
