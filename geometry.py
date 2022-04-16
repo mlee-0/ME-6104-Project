@@ -273,11 +273,11 @@ class Geometry(ABC):
     
     def get_number_cp_u(self) -> int:
         """Return the number of control points along u."""
-        return self.cp.shape[2]
+        return self.cp.shape[1]
     
     def get_number_cp_v(self) -> int:
         """Return the number of control points along v."""
-        return self.cp.shape[1]
+        return self.cp.shape[2]
 
     def get_actors(self) -> Tuple[vtk.vtkActor]:
         """Return a tuple of all actors associated with this geometry."""
