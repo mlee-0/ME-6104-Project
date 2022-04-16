@@ -5,8 +5,8 @@ Run this script to start the GUI.
 import sys
 
 import numpy as np
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox
+from PyQt5.QtCore import Qt, QStringListModel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QListView, QListView, QAbstractItemView
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
@@ -89,6 +89,14 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.fields_order)
 
         main_layout.addStretch(1)
+
+        # self.geometry_list = QStringListModel()
+        # self.geometry_list_widget = QListView()
+        # self.geometry_list_widget.setModel(self.geometry_list)
+        # self.geometry_list_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        # self.geometry_list_widget.setDragDropMode(QAbstractItemView.InternalMove)
+        # self.geometry_list_widget.selectionModel().selectionChanged.connect(self.change_selected_geometry)
+        # main_layout.addWidget(self.geometry_list_widget)
 
         self.label_selected = QLabel()
         self.label_selected.setAlignment(Qt.AlignCenter)
@@ -281,6 +289,11 @@ class MainWindow(QMainWindow):
     def add_geometry(self, geometry: Geometry) -> None:
         """Add the Geometry object to the list of all geometries and add its actors to the visualizer."""
         self.geometries.append(geometry)
+        
+        # row_index = self.geometry_list.rowCount()
+        # self.geometry_list.insertRow(row_index)
+        # self.geometry_list.setData(self.geometry_list.index(row_index, 0), str(geometry))
+        
         for actor in geometry.get_actors():
             self.ren.AddActor(actor)
         self.iren.GetInteractorStyle().add_to_pick_list(geometry)
@@ -417,6 +430,10 @@ class MainWindow(QMainWindow):
         """Remove the currently selected curve or surface."""
         if self.selected_geometry:
             self.iren.GetInteractorStyle().remove_from_pick_list(self.selected_geometry)
+            
+            # row_index = self.geometry_list.stringList().index(str(self.selected_geometry))
+            # self.geometry_list.removeRow(row_index)
+            
             for actor in self.selected_geometry.get_actors():
                 self.ren.RemoveActor(actor)
             del self.geometries[self.geometries.index(self.selected_geometry)]
@@ -437,6 +454,7 @@ class MainWindow(QMainWindow):
             self.fields_number_cp.setEnabled(False)
             self.fields_number_nodes.setEnabled(False)
             self.fields_order.setEnabled(False)
+            # self.geometry_list_widget.clearSelection()
         else:
             # Search for the Geometry object that the given actor corresponds to.
             for geometry in self.geometries:

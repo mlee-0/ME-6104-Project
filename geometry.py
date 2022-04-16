@@ -82,7 +82,10 @@ class Geometry(ABC):
         self.actor_cp = vtk.vtkActor()
         self.actor_cp.SetMapper(mapper_cp)
         self.actor_cp.GetProperty().SetRenderPointsAsSpheres(True)
+        self.actor_cp.GetProperty().SetEdgeVisibility(True)
+        self.actor_cp.GetProperty().SetVertexVisibility(True)
         self.actor_cp.GetProperty().SetPointSize(15)
+        self.actor_cp.GetProperty().SetLineWidth(5)
 
         self.actor_nodes = vtk.vtkActor()
         self.actor_nodes.SetMapper(mapper_nodes)
