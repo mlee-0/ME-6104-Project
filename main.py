@@ -399,9 +399,15 @@ class MainWindow(QMainWindow):
             self.ren.Render()
             self.iren.Render()
 
-    def update_number_cp(self) -> None:
+    def update_number_cp(self, value) -> None:
         """Update the number of control points in the current geometry."""
         if self.selected_geometry is not None:
+            # Lower the order for B-spline geometries if it is too high.
+            if isinstance(self.selected_geometry, BSplineGeometry):
+                max_order = self.selected_geometry.max_order(value)
+                if self.field_order.value() > max_order:
+                    self.field_order.setValue(max_order)
+            
             cp = self.selected_geometry.resize_cp(self.field_cp_u.value(), self.field_cp_v.value())
             self.selected_geometry.update(cp)
             self.ren.Render()
@@ -418,9 +424,18 @@ class MainWindow(QMainWindow):
             self.ren.Render()
             self.iren.Render()
 
-    def update_order(self) -> None:
+    def update_order(self, value) -> None:
         """Update the order of the current geometry."""
         if self.selected_geometry is not None:
+            # Lower the order entered by the user if it is too high.
+            if isinstance(self.selected_geometry, BSplineGeometry):
+                max_order = self.selected_geometry.max_order()
+                if value > self.selected_geometry.max_order():
+                    self.field_order.blockSignals(True)
+                    self.field_order.setValue(max_order)
+                    self.field_order.blockSignals(False)
+                    return
+            
             self.selected_geometry.update(order=self.field_order.value())
             self.ren.Render()
             self.iren.Render()

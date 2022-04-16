@@ -79,8 +79,11 @@ def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
     T_v = n + k + 1
     # Knot vectors with the appropriate numbers of repeated values at the beginning and end.
     padding = k - 1
-    knots_u = np.pad(np.arange(T_u - padding*2), padding, mode="edge")
-    knots_v = np.pad(np.arange(T_v - padding*2), padding, mode="edge")
+    knots_u = np.arange(T_u - padding*2)
+    knots_v = np.arange(T_v - padding*2)
+    assert 0 not in (knots_u.size, knots_v.size), f"The order {k} is too high for the number of control points {n+1}."
+    knots_u = np.pad(knots_u, padding, mode="edge")
+    knots_v = np.pad(knots_v, padding, mode="edge")
     # Interpolation points.
     u = np.linspace(0, knots_u[-1], number_u)
     v = np.linspace(0, knots_v[-1], number_v)

@@ -360,6 +360,10 @@ class BSplineCurve(BSplineGeometry, Curve):
     def calculate(cp: np.ndarray, number_u: int, _, order: int) -> np.ndarray:
         return bspline.curve(cp, number_u, order)
     
+    def max_order(self, number_cp_u: int = None) -> int:
+        """Return the highest order that this geometry can have, based on the given number of control points."""
+        return self.get_number_cp_u() if number_cp_u is None else number_cp_u
+    
     def __repr__(self) -> str:
         return f"{self.BSPLINE} curve #{self.instance} ({self.get_order_name(self.order)})"
 
@@ -367,6 +371,13 @@ class BSplineSurface(BSplineGeometry, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
         return bspline.surface(cp, number_u, number_v, order)
+    
+    def max_order(self, number_cp_u: int = None, number_cp_v: int = None) -> int:
+        """Return the highest order that this geometry can have, based on the given numbers of control points."""
+        return min([
+            self.get_number_cp_u() if number_cp_u is None else number_cp_u,
+            self.get_number_cp_v() if number_cp_v is None else number_cp_v,
+        ])
     
     def __repr__(self) -> str:
         return f"{self.BSPLINE} surface #{self.instance} ({self.get_order_name(self.order)})"
