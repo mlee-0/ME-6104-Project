@@ -12,6 +12,7 @@ def basis(u: np.ndarray, i: int, k: int, knots: np.ndarray) -> np.ndarray:
         else:
             numerator_1 = (u - knots[i]) * basis(u, i, k-1, knots)
             term_1 = numerator_1 / denominator_1
+        
         # Calculate the second term.
         denominator_2 = knots[i+k] - knots[i+1]
         if denominator_2 == 0.0:
@@ -29,12 +30,30 @@ def basis(u: np.ndarray, i: int, k: int, knots: np.ndarray) -> np.ndarray:
         else:
             return (u >= knots[i]) & (u < knots[i+1])
 
+# n = 5
+# k = 3
+# T = n + k + 1
+# padding = k - 1
+# knots = np.arange(T - padding*2)
+# assert knots.size > 0, f"The order {k} is too high for the number of control points {n+1}."
+# knots = np.pad(knots, padding, mode="edge")
+# u = np.linspace(0, knots[-1], 75)
+
+# from matplotlib import pyplot as plt
+# plt.figure()
+# for i in range(n+1):
+#     plt.subplot(n+1, 1, i+1)
+#     plt.plot(u, basis(u, i, k, knots), '.')
+#     # print(
+#     #     np.round(basis(u, i, k, knots), 2)
+#     # )
+#     plt.xticks(range(n+1))
+# plt.show()
+
 def curve(cp: np.ndarray, number_u: int, k: int) -> np.ndarray:
     """Return an array of nodes with size 3-u-1."""
     # Number of segments.
     n = cp.shape[1] - 1
-    # Interpolation points.
-    u = np.linspace(0, n, number_u)
     # Length of knots vector.
     T = n + k + 1
     # Knot vector with the appropriate number of repeated values at the beginning and end.
@@ -42,6 +61,8 @@ def curve(cp: np.ndarray, number_u: int, k: int) -> np.ndarray:
     knots = np.arange(T - padding*2)
     assert knots.size > 0, f"The order {k} is too high for the number of control points {n+1}."
     knots = np.pad(knots, padding, mode="edge")
+    # Interpolation points.
+    u = np.linspace(0, knots[-1], number_u)
     # Calculate nodes.
     nodes = np.zeros((3, number_u, 1))
     for i in range(n+1):
@@ -53,9 +74,6 @@ def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
     # Number of segments in each direction.
     m = cp.shape[1] - 1
     n = cp.shape[2] - 1
-    # Interpolation points.
-    u = np.linspace(0, m, number_u)
-    v = np.linspace(0, n, number_v)
     # Lengths of knots vectors.
     T_u = m + k + 1
     T_v = n + k + 1
@@ -63,6 +81,9 @@ def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
     padding = k - 1
     knots_u = np.pad(np.arange(T_u - padding*2), padding, mode="edge")
     knots_v = np.pad(np.arange(T_v - padding*2), padding, mode="edge")
+    # Interpolation points.
+    u = np.linspace(0, knots_u[-1], number_u)
+    v = np.linspace(0, knots_v[-1], number_v)
     # Calculate nodes.
     nodes = np.zeros((3, number_u, number_v))
     for i in range(m+1):
