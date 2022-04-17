@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
         self.geometries = []
         # The currently selected Geometry objects and point IDs.
         self.selected_geometry = []
-        self.selected_point = []
+        self.selected_point = None
 
         # Create the overall layout of the window.
         layout = QGridLayout()
@@ -42,6 +42,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.sidebar, 0, 0, 2, 1)
         layout.addWidget(visualizer, 0, 1)
         layout.addWidget(widget_camera_controls, 1, 1)
+
+        # Disable fields.
+        self.load_geometry(None)
 
         # Start the interactor after the layout is created.
         self.iren.Initialize()
@@ -75,15 +78,11 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(layout)
 
         self.fields_cp = self._make_fields_cp()
-        self.fields_cp.setEnabled(False)
         main_layout.addWidget(self.fields_cp)
 
         self.fields_number_cp = self._make_fields_number_cp()
         self.fields_number_nodes = self._make_fields_number_nodes()
         self.fields_order = self._make_fields_order()
-        self.fields_number_cp.setEnabled(False)
-        self.fields_number_nodes.setEnabled(False)
-        self.fields_order.setEnabled(False)
         main_layout.addWidget(self.fields_number_cp)
         main_layout.addWidget(self.fields_number_nodes)
         main_layout.addWidget(self.fields_order)
@@ -115,8 +114,7 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.field_x = QDoubleSpinBox()
-        self.field_x.setMaximum(1000)
-        self.field_x.setMinimum(-1000)
+        self.field_x.setRange(-1000, 1000)
         self.field_x.setSingleStep(1)
         self.field_x.setDecimals(1)
         self.field_x.setAlignment(Qt.AlignRight)
@@ -127,8 +125,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(layout)
         
         self.field_y = QDoubleSpinBox()
-        self.field_y.setMaximum(1000)
-        self.field_y.setMinimum(-1000)
+        self.field_y.setRange(-1000, 1000)
         self.field_y.setSingleStep(1)
         self.field_y.setDecimals(1)
         self.field_y.setAlignment(Qt.AlignRight)
@@ -139,8 +136,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(layout)
         
         self.field_z = QDoubleSpinBox()
-        self.field_z.setMaximum(1000)
-        self.field_z.setMinimum(-1000)
+        self.field_z.setRange(-1000, 1000)
         self.field_z.setSingleStep(1)
         self.field_z.setDecimals(1)
         self.field_z.setAlignment(Qt.AlignRight)
@@ -160,13 +156,11 @@ class MainWindow(QMainWindow):
 
         layout = QHBoxLayout()
         self.field_cp_u = QSpinBox()
-        self.field_cp_u.setMinimum(2)
-        self.field_cp_u.setMaximum(100)
+        self.field_cp_u.setRange(2, 100)
         self.field_cp_u.setAlignment(Qt.AlignRight)
         self.field_cp_u.valueChanged.connect(self.update_number_cp)
         self.field_cp_v = QSpinBox()
-        self.field_cp_v.setMinimum(2)
-        self.field_cp_v.setMaximum(100)
+        self.field_cp_v.setRange(2, 100)
         self.field_cp_v.setAlignment(Qt.AlignRight)
         self.field_cp_v.valueChanged.connect(self.update_number_cp)
         layout.addWidget(QLabel("Control Points:"))
@@ -187,13 +181,11 @@ class MainWindow(QMainWindow):
 
         layout = QHBoxLayout()
         self.field_nodes_u = QSpinBox()
-        self.field_nodes_u.setMinimum(2)
-        self.field_nodes_u.setMaximum(100)
+        self.field_nodes_u.setRange(2, 100)
         self.field_nodes_u.setAlignment(Qt.AlignRight)
         self.field_nodes_u.valueChanged.connect(self.update_number_nodes)
         self.field_nodes_v = QSpinBox()
-        self.field_nodes_v.setMinimum(2)
-        self.field_nodes_v.setMaximum(100)
+        self.field_nodes_v.setRange(2, 100)
         self.field_nodes_v.setAlignment(Qt.AlignRight)
         self.field_nodes_v.valueChanged.connect(self.update_number_nodes)
         layout.addWidget(QLabel("Nodes:"))
@@ -214,12 +206,14 @@ class MainWindow(QMainWindow):
 
         layout = QHBoxLayout()
         self.field_order = QSpinBox()
-        self.field_order.setMinimum(1)
-        self.field_order.setMaximum(100)
+        self.field_order.setRange(1, 10)
         self.field_order.setAlignment(Qt.AlignRight)
         self.field_order.valueChanged.connect(self.update_order)
+        self.label_order = QLabel()
+        self.label_order.setVisible(False)
         layout.addWidget(QLabel("Order:"))
         layout.addStretch(1)
+        layout.addWidget(self.label_order)
         layout.addWidget(self.field_order)
         main_layout.addLayout(layout)
 
@@ -264,16 +258,20 @@ class MainWindow(QMainWindow):
         # Show the name and order of the geometry.
         if len(self.selected_geometry) == 1:
             geometry = self.selected_geometry[0]
-            self.label_selected.setText(f"{geometry} ({Geometry.get_order_name(geometry.get_order())})")
+            self.label_selected.setText(str(geometry))
+            self.label_order.setText(Geometry.get_order_name(geometry.get_order()))
         # Show the continuity of the geometries.
         elif len(self.selected_geometry) > 1:
             continuity = self.calculate_continuity(*self.selected_geometry)
             if continuity:
                 self.label_selected.setText(f"{len(self.selected_geometry)} {self.selected_geometry[0].geometry_name} {self.selected_geometry[0].geometry_type}s have {continuity} continuity")
             else:
-                self.label_selected.setText(f"{len(self.selected_geometry)} geometries selected")
+                geometry_types = tuple(set([_.geometry_type for _ in self.selected_geometry]))
+                geometry_type = f"{geometry_types[0]}s" if len(geometry_types) == 1 else "geometries"
+                self.label_selected.setText(f"{len(self.selected_geometry)} {geometry_type} selected")
         else:
             self.label_selected.clear()
+            self.label_order.clear()
     
     def set_camera_top(self) -> None:
         """Set the camera to look down along the Z direction."""
@@ -403,7 +401,7 @@ class MainWindow(QMainWindow):
         ])
         if len(self.selected_geometry) == 1:
             geometry = self.selected_geometry[0]
-            geometry.update_single_cp(point, self.selected_point[0])
+            geometry.update_single_cp(point, self.selected_point)
             self.ren.Render()
             self.iren.Render()
     
@@ -478,18 +476,98 @@ class MainWindow(QMainWindow):
             self.iren.Render()
             self.update_label_selected()
         self.selected_geometry.clear()
-        self.selected_point.clear()
+        self.selected_point = None
+        self.update_label_selected()
 
+    def get_geometry_of_actor(self, actor: vtk.vtkActor) -> Geometry:
+        """Return the Geometry object that contains the given actor."""
+        for geometry in self.geometries:
+            if actor in geometry.get_actors():
+                return geometry
+    
+    def set_selected_geometry(self, actor: vtk.vtkActor, point_id: int = None, append: bool = False) -> None:
+        """Set or append the Geometry corresponding to the given actor to the current selection, and set the point ID as the current selection."""
+        self.selected_point = point_id
+        geometry = self.get_geometry_of_actor(actor) if actor else None
+        if append:
+            if geometry is not None and geometry not in self.selected_geometry:
+                self.selected_geometry.append(geometry)
+        else:
+            if geometry is None:
+                self.selected_geometry.clear()
+            else:
+                self.selected_geometry = [geometry]
+        
+        self.load_fields_with_geometry(geometry)
+    
+    def load_fields_with_geometry(self, geometry: Geometry = None) -> None:
+        """Populate the fields in the GUI with the information of the selected geometry, or disable them and reset their values if None."""
+        self.update_label_selected()
+
+        if geometry is None:
+            for fields in [self.fields_cp, self.fields_number_cp, self.fields_number_nodes, self.fields_order]:
+                fields.setEnabled(False)
+            # self.geometry_list_widget.clearSelection()
+        else:
+            is_surface = isinstance(geometry, Surface)
+            is_multiple_selected = len(self.selected_geometry) >= 2
+
+            # Load the control point fields, if a control point is currently selected.
+            if self.selected_point is not None:
+                point = geometry.get_point(self.selected_point)
+                self.fields_cp.setEnabled(True)
+                self.field_x.blockSignals(True)
+                self.field_y.blockSignals(True)
+                self.field_z.blockSignals(True)
+                self.field_x.setValue(point[0])
+                self.field_y.setValue(point[1])
+                self.field_z.setValue(point[2])
+                self.field_x.blockSignals(False)
+                self.field_y.blockSignals(False)
+                self.field_z.blockSignals(False)
+            
+            # Load the remaining fields.
+            self.fields_number_cp.setEnabled(True)
+            self.fields_number_nodes.setEnabled(True)
+            self.field_cp_v.setEnabled(is_surface)
+            self.field_nodes_v.setEnabled(is_surface)
+            self.fields_order.setEnabled(True)
+            self.field_order.setVisible(isinstance(geometry, BSplineGeometry))
+            self.label_order.setVisible(not isinstance(geometry, BSplineGeometry))
+
+            self.field_cp_u.blockSignals(True)
+            self.field_cp_v.blockSignals(True)
+            self.field_cp_u.setValue(geometry.get_number_cp_u())
+            if is_surface:
+                self.field_cp_v.setValue(geometry.get_number_cp_v())
+            self.field_cp_u.blockSignals(False)
+            self.field_cp_v.blockSignals(False)
+
+            self.field_nodes_u.blockSignals(True)
+            self.field_nodes_v.blockSignals(True)
+            self.field_nodes_u.setValue(geometry.number_u)
+            if is_surface:
+                self.field_nodes_v.setValue(geometry.number_v)
+            self.field_nodes_u.blockSignals(False)
+            self.field_nodes_v.blockSignals(False)
+
+            if isinstance(geometry, BSplineGeometry):
+                self.field_order.blockSignals(True)
+                self.field_order.setValue(geometry.get_order())
+                self.field_order.blockSignals(False)
+    
     def load_geometry(self, actor: vtk.vtkActor, point_id: int = None) -> None:
         """Populate the fields in the GUI with the information of the selected geometry. Called by the visualizer when the user selects geometry."""
         if actor is None:
             self.selected_geometry.clear()
-            self.selected_point.clear()
+            self.selected_point = None
             self.update_label_selected()
             self.fields_cp.setEnabled(False)
             self.fields_number_cp.setEnabled(False)
             self.fields_number_nodes.setEnabled(False)
             self.fields_order.setEnabled(False)
+            self.field_order.setVisible(True)
+            self.label_order.setVisible(False)
             # self.geometry_list_widget.clearSelection()
         else:
             # Search for the Geometry object that the given actor corresponds to.
@@ -505,7 +583,7 @@ class MainWindow(QMainWindow):
                     if actor is actor_cp:
                         assert point_id is not None
                         point = geometry.get_point(point_id)
-                        self.selected_point = [point_id]
+                        self.selected_point = point_id
                         self.field_x.blockSignals(True)
                         self.field_y.blockSignals(True)
                         self.field_z.blockSignals(True)
@@ -517,7 +595,7 @@ class MainWindow(QMainWindow):
                         self.field_y.blockSignals(False)
                         self.field_z.blockSignals(False)
                     else:
-                        self.selected_point.clear()
+                        self.selected_point = None
                         self.fields_cp.setEnabled(False)
                     
                     self.selected_geometry = [geometry]
@@ -529,6 +607,7 @@ class MainWindow(QMainWindow):
                     self.field_nodes_v.setEnabled(is_surface)
                     if isinstance(geometry, BSplineGeometry):
                         self.fields_order.setEnabled(True)
+                        self.field_order.setEnabled(True)
 
                     self.field_cp_u.blockSignals(True)
                     self.field_cp_v.blockSignals(True)
