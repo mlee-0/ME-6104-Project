@@ -21,9 +21,9 @@ class MainWindow(QMainWindow):
 
         # List containing all curves and surfaces.
         self.geometries = []
-        # The currently selected Geometry object and point ID.
-        self.selected_geometry = None
-        self.selected_point = None
+        # The currently selected Geometry objects and point IDs.
+        self.selected_geometry = []
+        self.selected_point = []
 
         # Create the overall layout of the window.
         layout = QGridLayout()
@@ -260,9 +260,18 @@ class MainWindow(QMainWindow):
         return widget
     
     def update_label_selected(self) -> None:
-        """Display the currently selected geometry's name in the label."""
-        if self.selected_geometry:
-            self.label_selected.setText(str(self.selected_geometry))
+        """Display information about the currently selected geometries in the label."""
+        # Show the name and order of the geometry.
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+            self.label_selected.setText(f"{geometry} ({Geometry.get_order_name(geometry.get_order())})")
+        # Show the continuity of the geometries.
+        elif len(self.selected_geometry) > 1:
+            continuity = self.calculate_continuity(*self.selected_geometry)
+            if continuity:
+                self.label_selected.setText(f"{len(self.selected_geometry)} {self.selected_geometry[0].geometry_name} {self.selected_geometry[0].geometry_type}s have {continuity} continuity")
+            else:
+                self.label_selected.setText(f"{len(self.selected_geometry)} geometries selected")
         else:
             self.label_selected.clear()
     
@@ -386,38 +395,48 @@ class MainWindow(QMainWindow):
         self.add_geometry(geometry)
 
     def update_cp(self) -> None:
-        """Update the control points in the current geometry."""
+        """Update the currently selected control point in the current geometry."""
         point = np.array([
             self.field_x.value(),
             self.field_y.value(),
             self.field_z.value(),
         ])
-        if self.selected_geometry is not None:
-            i, j = self.selected_geometry.get_point_indices(self.selected_point)
-            self.selected_geometry.cp[:, i, j] = point
-            self.selected_geometry.update(self.selected_geometry.cp)
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+            geometry.update_single_cp(point, self.selected_point[0])
+            self.ren.Render()
+            self.iren.Render()
+    
+    def update_cp_by_mouse(self, point: np.ndarray, point_id: int) -> None:
+        """Update the currently selected control point in the current geometry by specifying the new position."""
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+            geometry.update_single_cp(point, point_id)
             self.ren.Render()
             self.iren.Render()
 
     def update_number_cp(self, value) -> None:
         """Update the number of control points in the current geometry."""
-        if self.selected_geometry is not None:
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+
             # Lower the order for B-spline geometries if it is too high.
-            if isinstance(self.selected_geometry, BSplineGeometry):
-                max_order = self.selected_geometry.max_order(value)
+            if isinstance(geometry, BSplineGeometry):
+                max_order = geometry.max_order(value)
                 if self.field_order.value() > max_order:
                     self.field_order.setValue(max_order)
             
-            cp = self.selected_geometry.resize_cp(self.field_cp_u.value(), self.field_cp_v.value())
-            self.selected_geometry.update(cp)
+            cp = geometry.resize_cp(self.field_cp_u.value(), self.field_cp_v.value())
+            geometry.update(cp)
             self.ren.Render()
             self.iren.Render()
             self.update_label_selected()
     
     def update_number_nodes(self) -> None:
         """Update the number of nodes in the current geometry."""
-        if self.selected_geometry is not None:
-            self.selected_geometry.update(
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+            geometry.update(
                 number_u=self.field_nodes_u.value(),
                 number_v=self.field_nodes_v.value(),
             )
@@ -426,44 +445,46 @@ class MainWindow(QMainWindow):
 
     def update_order(self, value) -> None:
         """Update the order of the current geometry."""
-        if self.selected_geometry is not None:
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+
             # Lower the order entered by the user if it is too high.
-            if isinstance(self.selected_geometry, BSplineGeometry):
-                max_order = self.selected_geometry.max_order()
-                if value > self.selected_geometry.max_order():
+            if isinstance(geometry, BSplineGeometry):
+                max_order = geometry.max_order()
+                if value > geometry.max_order():
                     self.field_order.blockSignals(True)
                     self.field_order.setValue(max_order)
                     self.field_order.blockSignals(False)
                     return
             
-            self.selected_geometry.update(order=self.field_order.value())
+            geometry.update(order=self.field_order.value())
             self.ren.Render()
             self.iren.Render()
             self.update_label_selected()
     
     def remove_current(self) -> None:
-        """Remove the currently selected curve or surface."""
-        if self.selected_geometry:
-            self.iren.GetInteractorStyle().remove_from_pick_list(self.selected_geometry)
+        """Remove the currently selected geometries."""
+        for geometry in self.selected_geometry:
+            self.iren.GetInteractorStyle().remove_from_pick_list(geometry)
             
-            # row_index = self.geometry_list.stringList().index(str(self.selected_geometry))
+            # row_index = self.geometry_list.stringList().index(str(geometry))
             # self.geometry_list.removeRow(row_index)
             
-            for actor in self.selected_geometry.get_actors():
+            for actor in geometry.get_actors():
                 self.ren.RemoveActor(actor)
-            del self.geometries[self.geometries.index(self.selected_geometry)]
-            self.selected_geometry = None
-            self.selected_point = None
+            del self.geometries[self.geometries.index(geometry)]
 
             self.ren.Render()
             self.iren.Render()
             self.update_label_selected()
+        self.selected_geometry.clear()
+        self.selected_point.clear()
 
     def load_geometry(self, actor: vtk.vtkActor, point_id: int = None) -> None:
         """Populate the fields in the GUI with the information of the selected geometry. Called by the visualizer when the user selects geometry."""
         if actor is None:
-            self.selected_geometry = None
-            self.selected_point = None
+            self.selected_geometry.clear()
+            self.selected_point.clear()
             self.update_label_selected()
             self.fields_cp.setEnabled(False)
             self.fields_number_cp.setEnabled(False)
@@ -484,7 +505,7 @@ class MainWindow(QMainWindow):
                     if actor is actor_cp:
                         assert point_id is not None
                         point = geometry.get_point(point_id)
-                        self.selected_point = point_id
+                        self.selected_point = [point_id]
                         self.field_x.blockSignals(True)
                         self.field_y.blockSignals(True)
                         self.field_z.blockSignals(True)
@@ -496,10 +517,10 @@ class MainWindow(QMainWindow):
                         self.field_y.blockSignals(False)
                         self.field_z.blockSignals(False)
                     else:
-                        self.selected_point = None
+                        self.selected_point.clear()
                         self.fields_cp.setEnabled(False)
                     
-                    self.selected_geometry = geometry
+                    self.selected_geometry = [geometry]
                     self.update_label_selected()
 
                     self.fields_number_cp.setEnabled(True)
@@ -511,26 +532,35 @@ class MainWindow(QMainWindow):
 
                     self.field_cp_u.blockSignals(True)
                     self.field_cp_v.blockSignals(True)
-                    self.field_cp_u.setValue(self.selected_geometry.get_number_cp_u())
+                    self.field_cp_u.setValue(geometry.get_number_cp_u())
                     if is_surface:
-                        self.field_cp_v.setValue(self.selected_geometry.get_number_cp_v())
+                        self.field_cp_v.setValue(geometry.get_number_cp_v())
                     self.field_cp_u.blockSignals(False)
                     self.field_cp_v.blockSignals(False)
 
                     self.field_nodes_u.blockSignals(True)
                     self.field_nodes_v.blockSignals(True)
-                    self.field_nodes_u.setValue(self.selected_geometry.number_u)
+                    self.field_nodes_u.setValue(geometry.number_u)
                     if is_surface:
-                        self.field_nodes_v.setValue(self.selected_geometry.number_v)
+                        self.field_nodes_v.setValue(geometry.number_v)
                     self.field_nodes_u.blockSignals(False)
                     self.field_nodes_v.blockSignals(False)
 
                     if isinstance(geometry, BSplineGeometry):
                         self.field_order.blockSignals(True)
-                        self.field_order.setValue(self.selected_geometry.get_order())
+                        self.field_order.setValue(geometry.get_order())
                         self.field_order.blockSignals(False)
 
                     break
+
+    def calculate_continuity(self, *geometries) -> str:
+        """Return the continuity of the given geometries, returning None if invalid combination of geometries."""
+        if len(geometries) >= 2:
+            if len(set([type(_) for _ in geometries])) == 1:
+                pass
+            # If selected different types of geometries, return None.
+            else:
+                return None
 
     def preset_1(self):
         print("Preset 1")
