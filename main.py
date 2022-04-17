@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(widget_camera_controls, 1, 1)
 
         # Disable fields.
-        self.load_geometry(None)
+        self.load_fields_with_geometry(None)
 
         # Start the interactor after the layout is created.
         self.iren.Initialize()
@@ -101,9 +101,9 @@ class MainWindow(QMainWindow):
         self.label_selected.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.label_selected)
 
-        button = QPushButton("Delete")
-        button.clicked.connect(self.remove_current)
-        main_layout.addWidget(button)
+        self.button_delete = QPushButton("Delete")
+        self.button_delete.clicked.connect(self.remove_current)
+        main_layout.addWidget(self.button_delete)
 
         return widget
     
@@ -472,12 +472,12 @@ class MainWindow(QMainWindow):
                 self.ren.RemoveActor(actor)
             del self.geometries[self.geometries.index(geometry)]
 
-            self.ren.Render()
-            self.iren.Render()
-            self.update_label_selected()
         self.selected_geometry.clear()
         self.selected_point = None
+        self.load_fields_with_geometry(None)
         self.update_label_selected()
+        self.ren.Render()
+        self.iren.Render()
 
     def get_geometry_of_actor(self, actor: vtk.vtkActor) -> Geometry:
         """Return the Geometry object that contains the given actor."""
@@ -507,6 +507,7 @@ class MainWindow(QMainWindow):
         if geometry is None:
             for fields in [self.fields_cp, self.fields_number_cp, self.fields_number_nodes, self.fields_order]:
                 fields.setEnabled(False)
+            self.button_delete.setEnabled(False)
             # self.geometry_list_widget.clearSelection()
         else:
             is_surface = isinstance(geometry, Surface)
@@ -534,6 +535,7 @@ class MainWindow(QMainWindow):
             self.fields_order.setEnabled(True)
             self.field_order.setVisible(isinstance(geometry, BSplineGeometry))
             self.label_order.setVisible(not isinstance(geometry, BSplineGeometry))
+            self.button_delete.setEnabled(True)
 
             self.field_cp_u.blockSignals(True)
             self.field_cp_v.blockSignals(True)
@@ -556,87 +558,11 @@ class MainWindow(QMainWindow):
                 self.field_order.setValue(geometry.get_order())
                 self.field_order.blockSignals(False)
     
-    def load_geometry(self, actor: vtk.vtkActor, point_id: int = None) -> None:
-        """Populate the fields in the GUI with the information of the selected geometry. Called by the visualizer when the user selects geometry."""
-        if actor is None:
-            self.selected_geometry.clear()
-            self.selected_point = None
-            self.update_label_selected()
-            self.fields_cp.setEnabled(False)
-            self.fields_number_cp.setEnabled(False)
-            self.fields_number_nodes.setEnabled(False)
-            self.fields_order.setEnabled(False)
-            self.field_order.setVisible(True)
-            self.label_order.setVisible(False)
-            # self.geometry_list_widget.clearSelection()
-        else:
-            # Search for the Geometry object that the given actor corresponds to.
-            for geometry in self.geometries:
-                actors = geometry.get_actors()
-                if actor not in actors:
-                    continue
-                # The Geometry object is found.
-                else:
-                    is_surface = type(geometry) in [BezierSurface, HermiteSurface, BSplineSurface]
-                    actor_cp = actors[0]
-                    point = None
-                    if actor is actor_cp:
-                        assert point_id is not None
-                        point = geometry.get_point(point_id)
-                        self.selected_point = point_id
-                        self.field_x.blockSignals(True)
-                        self.field_y.blockSignals(True)
-                        self.field_z.blockSignals(True)
-                        self.field_x.setValue(point[0])
-                        self.field_y.setValue(point[1])
-                        self.field_z.setValue(point[2])
-                        self.fields_cp.setEnabled(True)
-                        self.field_x.blockSignals(False)
-                        self.field_y.blockSignals(False)
-                        self.field_z.blockSignals(False)
-                    else:
-                        self.selected_point = None
-                        self.fields_cp.setEnabled(False)
-                    
-                    self.selected_geometry = [geometry]
-                    self.update_label_selected()
-
-                    self.fields_number_cp.setEnabled(True)
-                    self.fields_number_nodes.setEnabled(True)
-                    self.field_cp_v.setEnabled(is_surface)
-                    self.field_nodes_v.setEnabled(is_surface)
-                    if isinstance(geometry, BSplineGeometry):
-                        self.fields_order.setEnabled(True)
-                        self.field_order.setEnabled(True)
-
-                    self.field_cp_u.blockSignals(True)
-                    self.field_cp_v.blockSignals(True)
-                    self.field_cp_u.setValue(geometry.get_number_cp_u())
-                    if is_surface:
-                        self.field_cp_v.setValue(geometry.get_number_cp_v())
-                    self.field_cp_u.blockSignals(False)
-                    self.field_cp_v.blockSignals(False)
-
-                    self.field_nodes_u.blockSignals(True)
-                    self.field_nodes_v.blockSignals(True)
-                    self.field_nodes_u.setValue(geometry.number_u)
-                    if is_surface:
-                        self.field_nodes_v.setValue(geometry.number_v)
-                    self.field_nodes_u.blockSignals(False)
-                    self.field_nodes_v.blockSignals(False)
-
-                    if isinstance(geometry, BSplineGeometry):
-                        self.field_order.blockSignals(True)
-                        self.field_order.setValue(geometry.get_order())
-                        self.field_order.blockSignals(False)
-
-                    break
-
     def calculate_continuity(self, *geometries) -> str:
         """Return the continuity of the given geometries, returning None if invalid combination of geometries."""
         if len(geometries) >= 2:
             if len(set([type(_) for _ in geometries])) == 1:
-                pass
+                return "no"
             # If selected different types of geometries, return None.
             else:
                 return None
