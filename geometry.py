@@ -16,7 +16,11 @@ from colors import *
 
 
 class Geometry(ABC):
-    """Base class for all geometries."""
+    """
+    Base class for all geometries.
+
+    All Geometry objects have a 3-dimensional `numpy.ndarray` of control points `cp` and a 3-dimensional `numpy.ndarray` of nodes `nodes`. The values in both arrays are added to two corresponding `vtkPoints` objects, which are connected to `vtkActor` objects that are shown on the screen.
+    """
 
     BEZIER = "Bézier"
     HERMITE = "Hermite"
@@ -325,9 +329,6 @@ class BezierSurface(BezierGeometry, Surface):
 class HermiteGeometry(Geometry):
     geometry_name = Geometry.HERMITE
 
-    def get_order(self):
-        return 3
-    
     def resize_cp(self, *args, **kwargs) -> None:
         """Return None because Hermite geometries have a fixed number of control points."""
         return None
@@ -337,12 +338,18 @@ class HermiteCurve(HermiteGeometry, Curve):
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         # Pass a copy of the array to prevent modifying the original array inside this function.
         return hermite.HermiteCurve(cp.copy(), number_u)
+    
+    def get_order(self):
+        return 3
 
 class HermiteSurface(HermiteGeometry, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         # Pass a copy of the array to prevent modifying the original array inside this function.
         return hermite.HermiteSurface(cp.copy(), number_u, number_v)
+    
+    def get_order(self):
+        return (3, 3)
 
 class BSplineGeometry(Geometry):
     geometry_name = Geometry.BSPLINE
