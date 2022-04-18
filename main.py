@@ -6,7 +6,8 @@ import sys
 
 import numpy as np
 from PyQt5.QtCore import Qt, QStringListModel
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QListView, QListView, QAbstractItemView
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QListView, QListView, QAbstractItemView
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
@@ -14,6 +15,10 @@ from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type
 from geometry import *
 from interaction import InteractorStyle
 
+
+PROGRAM_NAME = "Curve and Surface Visualizer"
+PROGRAM_VERSION = (0, 0, 0)
+AUTHORS = ["Sujay Kestur", "Marshall Lee"]
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -24,6 +29,17 @@ class MainWindow(QMainWindow):
         # The currently selected Geometry objects and point IDs.
         self.selected_geometry = []
         self.selected_point = None
+
+        # Create the menu bar.
+        menu_bar = self.menuBar()
+        menu_file = menu_bar.addMenu("File")
+        menu_file.addAction("Settings...", self.show_settings)
+        menu_file.addAction("About...", self.show_about)
+        menu_presets = menu_bar.addMenu("Presets")
+        menu_presets.addAction(f"2 {Geometry.BEZIER} Curves", self.preset_1)
+        menu_presets.addAction(f"2 {Geometry.BEZIER} Surfaces", self.preset_2)
+        menu_presets.addAction(f"2 {Geometry.HERMITE} Curves", self.preset_3)
+        menu_presets.addAction(f"2 {Geometry.HERMITE} Surfaces", self.preset_4)
 
         # Create the overall layout of the window.
         layout = QGridLayout()
@@ -42,6 +58,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.sidebar, 0, 0, 2, 1)
         layout.addWidget(visualizer, 0, 1)
         layout.addWidget(widget_camera_controls, 1, 1)
+
+        # Create dialog windows.
+        self._make_settings_window()
+        self._make_about_window()
 
         # Disable fields.
         self.load_fields_with_geometry(None)
@@ -253,6 +273,60 @@ class MainWindow(QMainWindow):
 
         return widget
     
+    def _make_settings_window(self) -> None:
+        """Create the Settings window."""
+        self.window_settings = QDialog(self)
+        self.window_settings.setModal(True)
+        self.window_settings.setWindowTitle("Settings")
+
+        main_layout = QVBoxLayout()
+        main_layout.setAlignment(Qt.AlignTop)
+        self.window_settings.setLayout(main_layout)
+
+        self.settings_field_cp = QSpinBox()
+        self.settings_field_cp.setRange(2, 100)
+        self.settings_field_cp.setValue(3)
+        self.settings_field_cp.setAlignment(Qt.AlignRight)
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel("Default Number of Control Points:"))
+        layout.addWidget(self.settings_field_cp)
+        main_layout.addLayout(layout)
+
+        self.settings_field_nodes = QSpinBox()
+        self.settings_field_nodes.setRange(2, 100)
+        self.settings_field_nodes.setValue(10)
+        self.settings_field_nodes.setAlignment(Qt.AlignRight)
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel("Default Number of Nodes:"))
+        layout.addWidget(self.settings_field_nodes)
+        main_layout.addLayout(layout)
+    
+    def _make_about_window(self) -> None:
+        """Create the About window."""
+        self.window_about = QDialog(self)
+        self.window_about.setModal(True)
+        self.window_about.setWindowTitle("About")
+
+        main_layout = QVBoxLayout()
+        main_layout.setAlignment(Qt.AlignCenter)
+        self.window_about.setLayout(main_layout)
+
+        logo = QLabel()
+        image = QPixmap("Images/logo.png").scaledToHeight(100)
+        logo.setPixmap(image)
+        main_layout.addWidget(logo, alignment=Qt.AlignCenter)
+        main_layout.addWidget(QLabel(PROGRAM_NAME), alignment=Qt.AlignCenter)
+        main_layout.addWidget(QLabel(f"Version: {'.'.join([str(_) for _ in PROGRAM_VERSION])}"), alignment=Qt.AlignCenter)
+        main_layout.addWidget(QLabel(f"Authors: {', '.join(AUTHORS)}"), alignment=Qt.AlignCenter)
+
+    def show_settings(self) -> None:
+        """Show the Settings window."""
+        self.window_settings.show()
+    
+    def show_about(self) -> None:
+        """Show the About window."""
+        self.window_about.show()
+
     def update_label_selected(self) -> None:
         """Display information about the currently selected geometries in the label."""
         # Show the name and order of the geometry.
@@ -310,13 +384,13 @@ class MainWindow(QMainWindow):
 
     def make_bezier_curve(self) -> None:
         """Add a preset Bezier curve to the visualizer."""
-        order = 2
-        number_u = 10
+        number_cp_u = self.settings_field_cp.value()
+        number_u = self.settings_field_nodes.value()
 
         cp = np.vstack((
-            np.linspace(0, 10, order+1),  # x-coordinates
-            np.linspace(0, 10, order+1),  # y-coordinates
-            np.zeros(order+1),  # z-coordinates
+            np.linspace(0, 10, number_cp_u),  # x-coordinates
+            np.linspace(0, 10, number_cp_u),  # y-coordinates
+            np.zeros(number_cp_u),  # z-coordinates
         ))
         cp = np.expand_dims(cp, 2)
 
@@ -325,7 +399,7 @@ class MainWindow(QMainWindow):
 
     def make_hermite_curve(self) -> None:
         """Add a preset Hermite curve to the visualizer."""
-        number_u = 10
+        number_u = self.settings_field_nodes.value()
 
         cp = np.array([[[0, 0, 0], [10, 10, 0], [5, 0, 0], [15, 10, 0]]]).transpose()
 
@@ -335,12 +409,12 @@ class MainWindow(QMainWindow):
     def make_bspline_curve(self) -> None:
         """Add a preset B-spline curve to the visualizer."""
         order = 2
-        number_cp = 3
-        number_u = 10
+        number_cp_u = self.settings_field_cp.value()
+        number_u = self.settings_field_nodes.value()
         cp = np.vstack((
-            np.linspace(0, 10, number_cp),  # x-coordinates
-            np.linspace(0, 10, number_cp),  # y-coordinates
-            np.zeros(number_cp),  # z-coordinates
+            np.linspace(0, 10, number_cp_u),  # x-coordinates
+            np.linspace(0, 10, number_cp_u),  # y-coordinates
+            np.zeros(number_cp_u),  # z-coordinates
         ))
         cp = np.expand_dims(cp, 2)
 
@@ -349,12 +423,11 @@ class MainWindow(QMainWindow):
     
     def make_bezier_surface(self) -> None:
         """Add a preset Bezier surface to the visualizer."""
-        order = 2
-        number_u = 10
-        number_v = 10
+        number_cp_u = self.settings_field_cp.value()
+        number_u = number_v = self.settings_field_nodes.value()
 
         cp = np.dstack(
-            np.meshgrid(np.linspace(0, 10, order+1), np.linspace(0, 10, order+1)) + [np.zeros((order+1,)*2)]
+            np.meshgrid(np.linspace(0, 10, number_cp_u), np.linspace(0, 10, number_cp_u)) + [np.zeros((number_cp_u,)*2)]
         )
         cp = cp.transpose((2, 0, 1))
 
@@ -363,8 +436,7 @@ class MainWindow(QMainWindow):
 
     def make_hermite_surface(self) -> None:
         """Add a preset Hermite surface to the visualizer."""
-        number_u = 10
-        number_v = 10
+        number_u = number_v = self.settings_field_nodes.value()
 
         cp = np.array([
             [[0,0,0], [0,10,0], [0,1,0], [0,11,0]],
@@ -379,10 +451,8 @@ class MainWindow(QMainWindow):
     def make_bspline_surface(self) -> None:
         """Add a preset B-spline surface to the visualizer."""
         order = 2
-        number_cp_u = 3
-        number_cp_v = 3
-        number_u = 10
-        number_v = 10
+        number_cp_u = number_cp_v = self.settings_field_cp.value()
+        number_u = number_v = self.settings_field_nodes.value()
 
         cp = np.dstack(
             np.meshgrid(np.linspace(0, 10, number_cp_u), np.linspace(0, 10, number_cp_v)) + [np.zeros((number_cp_u,number_cp_v))]
@@ -568,7 +638,47 @@ class MainWindow(QMainWindow):
                 return None
 
     def preset_1(self):
-        print("Preset 1")
+        """Add two preset Bézier curves with G1 continuity."""
+        cp_1 = np.array([[[3,10,0], [4,7,0], [6,6,0], [7.5,7.5,0]]]).transpose()
+        cp_2 = np.array([[[7.5,7.5,0], [8.2,8.2,0], [11,7,0], [14,6,0]]]).transpose()
+        self.add_geometry(BezierCurve(cp_1, 25))
+        self.add_geometry(BezierCurve(cp_2, 25))
+    
+    def preset_2(self):
+        """Add two preset Bézier surfaces with C1 continuity."""
+        cp_1 = np.array([[[0,20,0], [8,21,5], [18,23,0]], [[0,17,0], [8,17,6], [18,17,3]], [[0,14,0], [8,14,6], [18,14,4]]]).transpose((2,0,1))
+        cp_2 = np.array([[[0,14,0], [8,14,6], [18,14,4]], [[0,11,0], [8,11,6], [18,11,5]], [[0,0,0], [8,0,0], [18,0,0]]]).transpose((2,0,1))
+        self.add_geometry(BezierSurface(cp_1, 25, 25))
+        self.add_geometry(BezierSurface(cp_2, 25, 25))
+    
+    def preset_3(self):
+        """Add two preset Hermite curves with C2 continuity."""
+        cp_1 = np.array([[[1,5,0], [3,8,0], [3,3,0], [1.9286,-1.2321,0]]]).transpose()
+        cp_2 = np.array([[[3,8,0], [6,4,0], [1.9286,-1.2321,0], [4.2857,-1.0714,0]]]).transpose()
+        self.add_geometry(HermiteCurve(cp_1, 25))
+        self.add_geometry(HermiteCurve(cp_2, 25))
+    
+    def preset_4(self):
+        """Add two preset Hermite surfaces with some continuity."""
+        cp_1 = np.array([
+            [[0,0,0], [0,10,0], [0,1,0], [0,11,0]],
+            [[10,0,0], [10,10,0], [10,1,0], [10,11,0]],
+            [[1,0,0], [1,10,0], [0,0,1], [0,10,1]],
+            [[11,0,0], [11,10,0], [10,0,1], [10,10,1]],
+        ]).transpose((2,0,1))
+        cp_2 = np.array([
+            [[10,0,0], [10,10,0], [10,1,0], [10,11,0]],
+            [[20,0,0], [20,10,0], [20,1,0], [20,11,0]],
+            [[11,0,0], [11,10,0], [10,0,1], [10,10,1]],
+            [[21,0,0], [21,10,0], [20,0,1], [20,10,1]],
+        ]).transpose((2,0,1))
+        # cp_1[:, 2:, 2:] = cp_1[:, :2, :2]
+        # cp_2[:, 2:, 2:] = cp_2[:, :2, :2]
+        self.add_geometry(HermiteSurface(cp_1, 25, 25))
+        self.add_geometry(HermiteSurface(cp_2, 25, 25))
+
+    def preset_4_1(self):
+        print("Homework 4, Bezier curve")
         cp = np.array([
             [3, 4, 6, 7.2, 11, 14],
             [10, 7, 6, 7.5, 7, 6],
@@ -577,8 +687,8 @@ class MainWindow(QMainWindow):
         geometry = BezierCurve(cp, 25, 25)
         self.add_geometry(geometry)
 
-    def preset_2(self):
-        print("Preset 2")
+    def preset_4_2(self):
+        print("Homework 4, Bezier surface")
         cp = np.array([
             [[1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8]],
             [[20, 21, 22, 23], [17, 17, 17, 17], [14, 14, 14, 14], [11, 11, 11, 11]],
@@ -591,7 +701,8 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     application = QApplication(sys.argv)
     window = MainWindow()
-    window.setWindowTitle("Curve and Surface Visualizer")
+    window.setWindowTitle(PROGRAM_NAME)
+    window.setWindowIcon(QIcon("Images/logo.png"))
     window.show()
     # Start the application.
     sys.exit(application.exec_())
