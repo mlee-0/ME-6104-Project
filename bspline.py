@@ -1,3 +1,7 @@
+"""
+Functions that calculate B-spline curves and surfaces.
+"""
+
 import numpy as np
 
 

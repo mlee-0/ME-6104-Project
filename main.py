@@ -591,7 +591,7 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     application = QApplication(sys.argv)
     window = MainWindow()
-    # window.setWindowTitle("Window Title")
+    window.setWindowTitle("Curve and Surface Visualizer")
     window.show()
     # Start the application.
     sys.exit(application.exec_())
