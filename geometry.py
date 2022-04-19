@@ -16,7 +16,11 @@ from colors import *
 
 
 class Geometry(ABC):
-    """Base class for all geometries."""
+    """
+    Base class for all geometries.
+
+    All Geometry objects have a 3-dimensional `numpy.ndarray` of control points `cp` and a 3-dimensional `numpy.ndarray` of nodes `nodes`. The values in both arrays are added to two corresponding `vtkPoints` objects, which are connected to `vtkActor` objects that are shown on the screen.
+    """
 
     BEZIER = "Bézier"
     HERMITE = "Hermite"
@@ -283,11 +287,12 @@ class Geometry(ABC):
         """Return a tuple of all actors associated with this geometry."""
         return self.actor_cp, self.actor_nodes
     
-    @abstractmethod
     def __repr__(self) -> str:
-        pass
+        return f"{self.geometry_name} {self.geometry_type} #{self.instance}"
 
 class Curve(Geometry):
+    geometry_type = "curve"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.actor_nodes.GetProperty().SetRenderLinesAsTubes(True)
@@ -297,65 +302,62 @@ class Curve(Geometry):
         return Geometry.resize_cp_1d(self.cp, number_u)
 
 class Surface(Geometry):
+    geometry_type = "surface"
+
     def resize_cp(self, number_u: int, number_v: int) -> np.ndarray:
         return Geometry.resize_cp_2d(self.cp, number_u, number_v)
 
-class BezierGeometry(Geometry):
-    pass
+class Bezier(Geometry):
+    geometry_name = Geometry.BEZIER
 
-class BezierCurve(BezierGeometry, Curve):
+class BezierCurve(Bezier, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
         return bezier.curve(cp, number_u)
     
     def get_order(self) -> int:
         return self.cp.shape[1] - 1
-    
-    def __repr__(self) -> str:
-        return f"{self.BEZIER} curve #{self.instance} ({self.get_order_name(self.order)})"
 
-class BezierSurface(BezierGeometry, Surface):
+class BezierSurface(Bezier, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         return bezier.surface(cp, number_u, number_v)
     
     def get_order(self) -> Tuple[int, int]:
         return (self.cp.shape[1] - 1, self.cp.shape[2] - 1)
-    
-    def __repr__(self) -> str:
-        return f"{self.BEZIER} surface #{self.instance} ({self.get_order_name(self.order)})"
 
-class HermiteGeometry(Geometry):
-    def get_order(self):
-        return 3
-    
+class Hermite(Geometry):
+    geometry_name = Geometry.HERMITE
+
     def resize_cp(self, *args, **kwargs) -> None:
         """Return None because Hermite geometries have a fixed number of control points."""
         return None
 
-class HermiteCurve(HermiteGeometry, Curve):
+class HermiteCurve(Hermite, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         # Pass a copy of the array to prevent modifying the original array inside this function.
         return hermite.HermiteCurve(cp.copy(), number_u)
+    
+    def get_order(self):
+        return 3
 
-    def __repr__(self) -> str:
-        return f"{self.HERMITE} curve #{self.instance} ({self.get_order_name(self.order)})"
-
-class HermiteSurface(HermiteGeometry, Surface):
+class HermiteSurface(Hermite, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         # Pass a copy of the array to prevent modifying the original array inside this function.
         return hermite.HermiteSurface(cp.copy(), number_u, number_v)
+    
+    def get_order(self):
+        return (3, 3)
 
-    def __repr__(self) -> str:
-        return f"{self.HERMITE} surface #{self.instance} ({self.get_order_name(self.order)})"
+class BSpline(Geometry):
+    geometry_name = Geometry.BSPLINE
 
-class BSplineGeometry(Geometry):
     def get_order(self) -> int:
         return self.order
 
-class BSplineCurve(BSplineGeometry, Curve):
+class BSplineCurve(BSpline, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, _, order: int) -> np.ndarray:
         return bspline.curve(cp, number_u, order)
@@ -363,11 +365,8 @@ class BSplineCurve(BSplineGeometry, Curve):
     def max_order(self, number_cp_u: int = None) -> int:
         """Return the highest order that this geometry can have, based on the given number of control points."""
         return self.get_number_cp_u() if number_cp_u is None else number_cp_u
-    
-    def __repr__(self) -> str:
-        return f"{self.BSPLINE} curve #{self.instance} ({self.get_order_name(self.order)})"
 
-class BSplineSurface(BSplineGeometry, Surface):
+class BSplineSurface(BSpline, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
         return bspline.surface(cp, number_u, number_v, order)
@@ -378,6 +377,3 @@ class BSplineSurface(BSplineGeometry, Surface):
             self.get_number_cp_u() if number_cp_u is None else number_cp_u,
             self.get_number_cp_v() if number_cp_v is None else number_cp_v,
         ])
-    
-    def __repr__(self) -> str:
-        return f"{self.BSPLINE} surface #{self.instance} ({self.get_order_name(self.order)})"

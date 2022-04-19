@@ -1,3 +1,7 @@
+"""
+Functions that calculate Hermite curves and surfaces.
+"""
+
 import numpy as np
 
 

@@ -6,7 +6,8 @@ import sys
 
 import numpy as np
 from PyQt5.QtCore import Qt, QStringListModel
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QListView, QListView, QAbstractItemView
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QListView, QListView, QAbstractItemView
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
@@ -15,15 +16,30 @@ from geometry import *
 from interaction import InteractorStyle
 
 
+PROGRAM_NAME = "Curve and Surface Visualizer"
+PROGRAM_VERSION = (0, 0, 0)
+AUTHORS = ["Sujay Kestur", "Marshall Lee"]
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
         # List containing all curves and surfaces.
         self.geometries = []
-        # The currently selected Geometry object and point ID.
-        self.selected_geometry = None
+        # The currently selected Geometry objects and point IDs.
+        self.selected_geometry = []
         self.selected_point = None
+
+        # Create the menu bar.
+        menu_bar = self.menuBar()
+        menu_file = menu_bar.addMenu("File")
+        menu_file.addAction("Settings...", self.show_settings)
+        menu_file.addAction("About...", self.show_about)
+        menu_presets = menu_bar.addMenu("Presets")
+        menu_presets.addAction(f"2 {Geometry.BEZIER} Curves", self.preset_1)
+        menu_presets.addAction(f"2 {Geometry.BEZIER} Surfaces", self.preset_2)
+        menu_presets.addAction(f"2 {Geometry.HERMITE} Curves", self.preset_3)
+        menu_presets.addAction(f"2 {Geometry.HERMITE} Surfaces", self.preset_4)
 
         # Create the overall layout of the window.
         layout = QGridLayout()
@@ -42,6 +58,13 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.sidebar, 0, 0, 2, 1)
         layout.addWidget(visualizer, 0, 1)
         layout.addWidget(widget_camera_controls, 1, 1)
+
+        # Create dialog windows.
+        self._make_settings_window()
+        self._make_about_window()
+
+        # Disable fields.
+        self.load_fields_with_geometry(None)
 
         # Start the interactor after the layout is created.
         self.iren.Initialize()
@@ -75,15 +98,11 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(layout)
 
         self.fields_cp = self._make_fields_cp()
-        self.fields_cp.setEnabled(False)
         main_layout.addWidget(self.fields_cp)
 
         self.fields_number_cp = self._make_fields_number_cp()
         self.fields_number_nodes = self._make_fields_number_nodes()
         self.fields_order = self._make_fields_order()
-        self.fields_number_cp.setEnabled(False)
-        self.fields_number_nodes.setEnabled(False)
-        self.fields_order.setEnabled(False)
         main_layout.addWidget(self.fields_number_cp)
         main_layout.addWidget(self.fields_number_nodes)
         main_layout.addWidget(self.fields_order)
@@ -102,9 +121,9 @@ class MainWindow(QMainWindow):
         self.label_selected.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.label_selected)
 
-        button = QPushButton("Delete")
-        button.clicked.connect(self.remove_current)
-        main_layout.addWidget(button)
+        self.button_delete = QPushButton("Delete")
+        self.button_delete.clicked.connect(self.remove_current)
+        main_layout.addWidget(self.button_delete)
 
         return widget
     
@@ -115,8 +134,7 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.field_x = QDoubleSpinBox()
-        self.field_x.setMaximum(1000)
-        self.field_x.setMinimum(-1000)
+        self.field_x.setRange(-1000, 1000)
         self.field_x.setSingleStep(1)
         self.field_x.setDecimals(1)
         self.field_x.setAlignment(Qt.AlignRight)
@@ -127,8 +145,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(layout)
         
         self.field_y = QDoubleSpinBox()
-        self.field_y.setMaximum(1000)
-        self.field_y.setMinimum(-1000)
+        self.field_y.setRange(-1000, 1000)
         self.field_y.setSingleStep(1)
         self.field_y.setDecimals(1)
         self.field_y.setAlignment(Qt.AlignRight)
@@ -139,8 +156,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(layout)
         
         self.field_z = QDoubleSpinBox()
-        self.field_z.setMaximum(1000)
-        self.field_z.setMinimum(-1000)
+        self.field_z.setRange(-1000, 1000)
         self.field_z.setSingleStep(1)
         self.field_z.setDecimals(1)
         self.field_z.setAlignment(Qt.AlignRight)
@@ -160,13 +176,11 @@ class MainWindow(QMainWindow):
 
         layout = QHBoxLayout()
         self.field_cp_u = QSpinBox()
-        self.field_cp_u.setMinimum(2)
-        self.field_cp_u.setMaximum(100)
+        self.field_cp_u.setRange(2, 100)
         self.field_cp_u.setAlignment(Qt.AlignRight)
         self.field_cp_u.valueChanged.connect(self.update_number_cp)
         self.field_cp_v = QSpinBox()
-        self.field_cp_v.setMinimum(2)
-        self.field_cp_v.setMaximum(100)
+        self.field_cp_v.setRange(2, 100)
         self.field_cp_v.setAlignment(Qt.AlignRight)
         self.field_cp_v.valueChanged.connect(self.update_number_cp)
         layout.addWidget(QLabel("Control Points:"))
@@ -187,13 +201,11 @@ class MainWindow(QMainWindow):
 
         layout = QHBoxLayout()
         self.field_nodes_u = QSpinBox()
-        self.field_nodes_u.setMinimum(2)
-        self.field_nodes_u.setMaximum(100)
+        self.field_nodes_u.setRange(2, 100)
         self.field_nodes_u.setAlignment(Qt.AlignRight)
         self.field_nodes_u.valueChanged.connect(self.update_number_nodes)
         self.field_nodes_v = QSpinBox()
-        self.field_nodes_v.setMinimum(2)
-        self.field_nodes_v.setMaximum(100)
+        self.field_nodes_v.setRange(2, 100)
         self.field_nodes_v.setAlignment(Qt.AlignRight)
         self.field_nodes_v.valueChanged.connect(self.update_number_nodes)
         layout.addWidget(QLabel("Nodes:"))
@@ -214,12 +226,14 @@ class MainWindow(QMainWindow):
 
         layout = QHBoxLayout()
         self.field_order = QSpinBox()
-        self.field_order.setMinimum(1)
-        self.field_order.setMaximum(100)
+        self.field_order.setRange(1, 10)
         self.field_order.setAlignment(Qt.AlignRight)
         self.field_order.valueChanged.connect(self.update_order)
+        self.label_order = QLabel()
+        self.label_order.setVisible(False)
         layout.addWidget(QLabel("Order:"))
         layout.addStretch(1)
+        layout.addWidget(self.label_order)
         layout.addWidget(self.field_order)
         main_layout.addLayout(layout)
 
@@ -259,12 +273,79 @@ class MainWindow(QMainWindow):
 
         return widget
     
+    def _make_settings_window(self) -> None:
+        """Create the Settings window."""
+        self.window_settings = QDialog(self)
+        self.window_settings.setModal(True)
+        self.window_settings.setWindowTitle("Settings")
+
+        main_layout = QVBoxLayout()
+        main_layout.setAlignment(Qt.AlignTop)
+        self.window_settings.setLayout(main_layout)
+
+        self.settings_field_cp = QSpinBox()
+        self.settings_field_cp.setRange(2, 100)
+        self.settings_field_cp.setValue(3)
+        self.settings_field_cp.setAlignment(Qt.AlignRight)
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel("Default Number of Control Points:"))
+        layout.addWidget(self.settings_field_cp)
+        main_layout.addLayout(layout)
+
+        self.settings_field_nodes = QSpinBox()
+        self.settings_field_nodes.setRange(2, 100)
+        self.settings_field_nodes.setValue(10)
+        self.settings_field_nodes.setAlignment(Qt.AlignRight)
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel("Default Number of Nodes:"))
+        layout.addWidget(self.settings_field_nodes)
+        main_layout.addLayout(layout)
+    
+    def _make_about_window(self) -> None:
+        """Create the About window."""
+        self.window_about = QDialog(self)
+        self.window_about.setModal(True)
+        self.window_about.setWindowTitle("About")
+
+        main_layout = QVBoxLayout()
+        main_layout.setAlignment(Qt.AlignCenter)
+        self.window_about.setLayout(main_layout)
+
+        logo = QLabel()
+        image = QPixmap("Images/logo.png").scaledToHeight(100)
+        logo.setPixmap(image)
+        main_layout.addWidget(logo, alignment=Qt.AlignCenter)
+        main_layout.addWidget(QLabel(PROGRAM_NAME), alignment=Qt.AlignCenter)
+        main_layout.addWidget(QLabel(f"Version: {'.'.join([str(_) for _ in PROGRAM_VERSION])}"), alignment=Qt.AlignCenter)
+        main_layout.addWidget(QLabel(f"Authors: {', '.join(AUTHORS)}"), alignment=Qt.AlignCenter)
+
+    def show_settings(self) -> None:
+        """Show the Settings window."""
+        self.window_settings.show()
+    
+    def show_about(self) -> None:
+        """Show the About window."""
+        self.window_about.show()
+
     def update_label_selected(self) -> None:
-        """Display the currently selected geometry's name in the label."""
-        if self.selected_geometry:
-            self.label_selected.setText(str(self.selected_geometry))
+        """Display information about the currently selected geometries in the label."""
+        # Show the name and order of the geometry.
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+            self.label_selected.setText(str(geometry))
+            self.label_order.setText(Geometry.get_order_name(geometry.get_order()))
+        # Show the continuity of the geometries.
+        elif len(self.selected_geometry) > 1:
+            continuity = self.calculate_continuity(*self.selected_geometry)
+            if continuity:
+                self.label_selected.setText(f"{len(self.selected_geometry)} {self.selected_geometry[0].geometry_name} {self.selected_geometry[0].geometry_type}s have {continuity} continuity")
+            else:
+                geometry_types = tuple(set([_.geometry_type for _ in self.selected_geometry]))
+                geometry_type = f"{geometry_types[0]}s" if len(geometry_types) == 1 else "geometries"
+                self.label_selected.setText(f"{len(self.selected_geometry)} {geometry_type} selected")
         else:
             self.label_selected.clear()
+            self.label_order.clear()
     
     def set_camera_top(self) -> None:
         """Set the camera to look down along the Z direction."""
@@ -303,13 +384,13 @@ class MainWindow(QMainWindow):
 
     def make_bezier_curve(self) -> None:
         """Add a preset Bezier curve to the visualizer."""
-        order = 2
-        number_u = 10
+        number_cp_u = self.settings_field_cp.value()
+        number_u = self.settings_field_nodes.value()
 
         cp = np.vstack((
-            np.linspace(0, 10, order+1),  # x-coordinates
-            np.linspace(0, 10, order+1),  # y-coordinates
-            np.zeros(order+1),  # z-coordinates
+            np.linspace(0, 10, number_cp_u),  # x-coordinates
+            np.linspace(0, 10, number_cp_u),  # y-coordinates
+            np.zeros(number_cp_u),  # z-coordinates
         ))
         cp = np.expand_dims(cp, 2)
 
@@ -318,7 +399,7 @@ class MainWindow(QMainWindow):
 
     def make_hermite_curve(self) -> None:
         """Add a preset Hermite curve to the visualizer."""
-        number_u = 10
+        number_u = self.settings_field_nodes.value()
 
         cp = np.array([[[0, 0, 0], [10, 10, 0], [5, 0, 0], [15, 10, 0]]]).transpose()
 
@@ -328,12 +409,12 @@ class MainWindow(QMainWindow):
     def make_bspline_curve(self) -> None:
         """Add a preset B-spline curve to the visualizer."""
         order = 2
-        number_cp = 3
-        number_u = 10
+        number_cp_u = self.settings_field_cp.value()
+        number_u = self.settings_field_nodes.value()
         cp = np.vstack((
-            np.linspace(0, 10, number_cp),  # x-coordinates
-            np.linspace(0, 10, number_cp),  # y-coordinates
-            np.zeros(number_cp),  # z-coordinates
+            np.linspace(0, 10, number_cp_u),  # x-coordinates
+            np.linspace(0, 10, number_cp_u),  # y-coordinates
+            np.zeros(number_cp_u),  # z-coordinates
         ))
         cp = np.expand_dims(cp, 2)
 
@@ -342,12 +423,11 @@ class MainWindow(QMainWindow):
     
     def make_bezier_surface(self) -> None:
         """Add a preset Bezier surface to the visualizer."""
-        order = 2
-        number_u = 10
-        number_v = 10
+        number_cp_u = self.settings_field_cp.value()
+        number_u = number_v = self.settings_field_nodes.value()
 
         cp = np.dstack(
-            np.meshgrid(np.linspace(0, 10, order+1), np.linspace(0, 10, order+1)) + [np.zeros((order+1,)*2)]
+            np.meshgrid(np.linspace(0, 10, number_cp_u), np.linspace(0, 10, number_cp_u)) + [np.zeros((number_cp_u,)*2)]
         )
         cp = cp.transpose((2, 0, 1))
 
@@ -356,8 +436,7 @@ class MainWindow(QMainWindow):
 
     def make_hermite_surface(self) -> None:
         """Add a preset Hermite surface to the visualizer."""
-        number_u = 10
-        number_v = 10
+        number_u = number_v = self.settings_field_nodes.value()
 
         cp = np.array([
             [[0,0,0], [0,10,0], [0,1,0], [0,11,0]],
@@ -372,10 +451,8 @@ class MainWindow(QMainWindow):
     def make_bspline_surface(self) -> None:
         """Add a preset B-spline surface to the visualizer."""
         order = 2
-        number_cp_u = 3
-        number_cp_v = 3
-        number_u = 10
-        number_v = 10
+        number_cp_u = number_cp_v = self.settings_field_cp.value()
+        number_u = number_v = self.settings_field_nodes.value()
 
         cp = np.dstack(
             np.meshgrid(np.linspace(0, 10, number_cp_u), np.linspace(0, 10, number_cp_v)) + [np.zeros((number_cp_u,number_cp_v))]
@@ -386,38 +463,48 @@ class MainWindow(QMainWindow):
         self.add_geometry(geometry)
 
     def update_cp(self) -> None:
-        """Update the control points in the current geometry."""
+        """Update the currently selected control point in the current geometry."""
         point = np.array([
             self.field_x.value(),
             self.field_y.value(),
             self.field_z.value(),
         ])
-        if self.selected_geometry is not None:
-            i, j = self.selected_geometry.get_point_indices(self.selected_point)
-            self.selected_geometry.cp[:, i, j] = point
-            self.selected_geometry.update(self.selected_geometry.cp)
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+            geometry.update_single_cp(point, self.selected_point)
+            self.ren.Render()
+            self.iren.Render()
+    
+    def update_cp_by_mouse(self, point: np.ndarray, point_id: int) -> None:
+        """Update the currently selected control point in the current geometry by specifying the new position."""
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+            geometry.update_single_cp(point, point_id)
             self.ren.Render()
             self.iren.Render()
 
     def update_number_cp(self, value) -> None:
         """Update the number of control points in the current geometry."""
-        if self.selected_geometry is not None:
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+
             # Lower the order for B-spline geometries if it is too high.
-            if isinstance(self.selected_geometry, BSplineGeometry):
-                max_order = self.selected_geometry.max_order(value)
+            if isinstance(geometry, BSpline):
+                max_order = geometry.max_order(value)
                 if self.field_order.value() > max_order:
                     self.field_order.setValue(max_order)
             
-            cp = self.selected_geometry.resize_cp(self.field_cp_u.value(), self.field_cp_v.value())
-            self.selected_geometry.update(cp)
+            cp = geometry.resize_cp(self.field_cp_u.value(), self.field_cp_v.value())
+            geometry.update(cp)
             self.ren.Render()
             self.iren.Render()
             self.update_label_selected()
     
     def update_number_nodes(self) -> None:
         """Update the number of nodes in the current geometry."""
-        if self.selected_geometry is not None:
-            self.selected_geometry.update(
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+            geometry.update(
                 number_u=self.field_nodes_u.value(),
                 number_v=self.field_nodes_v.value(),
             )
@@ -426,114 +513,172 @@ class MainWindow(QMainWindow):
 
     def update_order(self, value) -> None:
         """Update the order of the current geometry."""
-        if self.selected_geometry is not None:
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+
             # Lower the order entered by the user if it is too high.
-            if isinstance(self.selected_geometry, BSplineGeometry):
-                max_order = self.selected_geometry.max_order()
-                if value > self.selected_geometry.max_order():
+            if isinstance(geometry, BSpline):
+                max_order = geometry.max_order()
+                if value > geometry.max_order():
                     self.field_order.blockSignals(True)
                     self.field_order.setValue(max_order)
                     self.field_order.blockSignals(False)
                     return
             
-            self.selected_geometry.update(order=self.field_order.value())
+            geometry.update(order=self.field_order.value())
             self.ren.Render()
             self.iren.Render()
             self.update_label_selected()
     
     def remove_current(self) -> None:
-        """Remove the currently selected curve or surface."""
-        if self.selected_geometry:
-            self.iren.GetInteractorStyle().remove_from_pick_list(self.selected_geometry)
+        """Remove the currently selected geometries."""
+        for geometry in self.selected_geometry:
+            self.iren.GetInteractorStyle().remove_from_pick_list(geometry)
             
-            # row_index = self.geometry_list.stringList().index(str(self.selected_geometry))
+            # row_index = self.geometry_list.stringList().index(str(geometry))
             # self.geometry_list.removeRow(row_index)
             
-            for actor in self.selected_geometry.get_actors():
+            for actor in geometry.get_actors():
                 self.ren.RemoveActor(actor)
-            del self.geometries[self.geometries.index(self.selected_geometry)]
-            self.selected_geometry = None
-            self.selected_point = None
+            del self.geometries[self.geometries.index(geometry)]
 
-            self.ren.Render()
-            self.iren.Render()
-            self.update_label_selected()
+        self.selected_geometry.clear()
+        self.selected_point = None
+        self.load_fields_with_geometry(None)
+        self.update_label_selected()
+        self.ren.Render()
+        self.iren.Render()
 
-    def load_geometry(self, actor: vtk.vtkActor, point_id: int = None) -> None:
-        """Populate the fields in the GUI with the information of the selected geometry. Called by the visualizer when the user selects geometry."""
-        if actor is None:
-            self.selected_geometry = None
-            self.selected_point = None
-            self.update_label_selected()
-            self.fields_cp.setEnabled(False)
-            self.fields_number_cp.setEnabled(False)
-            self.fields_number_nodes.setEnabled(False)
-            self.fields_order.setEnabled(False)
+    def get_geometry_of_actor(self, actor: vtk.vtkActor) -> Geometry:
+        """Return the Geometry object that contains the given actor."""
+        for geometry in self.geometries:
+            if actor in geometry.get_actors():
+                return geometry
+    
+    def set_selected_geometry(self, actor: vtk.vtkActor, point_id: int = None, append: bool = False) -> None:
+        """Set or append the Geometry corresponding to the given actor to the current selection, and set the point ID as the current selection."""
+        self.selected_point = point_id
+        geometry = self.get_geometry_of_actor(actor) if actor else None
+        if append:
+            if geometry is not None and geometry not in self.selected_geometry:
+                self.selected_geometry.append(geometry)
+        else:
+            if geometry is None:
+                self.selected_geometry.clear()
+            else:
+                self.selected_geometry = [geometry]
+        
+        self.load_fields_with_geometry(geometry)
+    
+    def load_fields_with_geometry(self, geometry: Geometry = None) -> None:
+        """Populate the fields in the GUI with the information of the selected geometry, or disable them and reset their values if None."""
+        self.update_label_selected()
+
+        if geometry is None:
+            for fields in [self.fields_cp, self.fields_number_cp, self.fields_number_nodes, self.fields_order]:
+                fields.setEnabled(False)
+            self.button_delete.setEnabled(False)
             # self.geometry_list_widget.clearSelection()
         else:
-            # Search for the Geometry object that the given actor corresponds to.
-            for geometry in self.geometries:
-                actors = geometry.get_actors()
-                if actor not in actors:
-                    continue
-                # The Geometry object is found.
-                else:
-                    is_surface = type(geometry) in [BezierSurface, HermiteSurface, BSplineSurface]
-                    actor_cp = actors[0]
-                    point = None
-                    if actor is actor_cp:
-                        assert point_id is not None
-                        point = geometry.get_point(point_id)
-                        self.selected_point = point_id
-                        self.field_x.blockSignals(True)
-                        self.field_y.blockSignals(True)
-                        self.field_z.blockSignals(True)
-                        self.field_x.setValue(point[0])
-                        self.field_y.setValue(point[1])
-                        self.field_z.setValue(point[2])
-                        self.fields_cp.setEnabled(True)
-                        self.field_x.blockSignals(False)
-                        self.field_y.blockSignals(False)
-                        self.field_z.blockSignals(False)
-                    else:
-                        self.selected_point = None
-                        self.fields_cp.setEnabled(False)
-                    
-                    self.selected_geometry = geometry
-                    self.update_label_selected()
+            is_surface = isinstance(geometry, Surface)
+            is_multiple_selected = len(self.selected_geometry) >= 2
 
-                    self.fields_number_cp.setEnabled(True)
-                    self.fields_number_nodes.setEnabled(True)
-                    self.field_cp_v.setEnabled(is_surface)
-                    self.field_nodes_v.setEnabled(is_surface)
-                    if isinstance(geometry, BSplineGeometry):
-                        self.fields_order.setEnabled(True)
+            # Load the control point fields, if a control point is currently selected.
+            if self.selected_point is not None:
+                point = geometry.get_point(self.selected_point)
+                self.fields_cp.setEnabled(True)
+                self.field_x.blockSignals(True)
+                self.field_y.blockSignals(True)
+                self.field_z.blockSignals(True)
+                self.field_x.setValue(point[0])
+                self.field_y.setValue(point[1])
+                self.field_z.setValue(point[2])
+                self.field_x.blockSignals(False)
+                self.field_y.blockSignals(False)
+                self.field_z.blockSignals(False)
+            
+            # Load the remaining fields.
+            self.fields_number_cp.setEnabled(not isinstance(geometry, Hermite))
+            self.fields_number_nodes.setEnabled(True)
+            self.field_cp_v.setEnabled(is_surface)
+            self.field_nodes_v.setEnabled(is_surface)
+            self.fields_order.setEnabled(True)
+            self.field_order.setVisible(isinstance(geometry, BSpline))
+            self.label_order.setVisible(not isinstance(geometry, BSpline))
+            self.button_delete.setEnabled(True)
 
-                    self.field_cp_u.blockSignals(True)
-                    self.field_cp_v.blockSignals(True)
-                    self.field_cp_u.setValue(self.selected_geometry.get_number_cp_u())
-                    if is_surface:
-                        self.field_cp_v.setValue(self.selected_geometry.get_number_cp_v())
-                    self.field_cp_u.blockSignals(False)
-                    self.field_cp_v.blockSignals(False)
+            self.field_cp_u.blockSignals(True)
+            self.field_cp_v.blockSignals(True)
+            self.field_cp_u.setValue(geometry.get_number_cp_u())
+            if is_surface:
+                self.field_cp_v.setValue(geometry.get_number_cp_v())
+            self.field_cp_u.blockSignals(False)
+            self.field_cp_v.blockSignals(False)
 
-                    self.field_nodes_u.blockSignals(True)
-                    self.field_nodes_v.blockSignals(True)
-                    self.field_nodes_u.setValue(self.selected_geometry.number_u)
-                    if is_surface:
-                        self.field_nodes_v.setValue(self.selected_geometry.number_v)
-                    self.field_nodes_u.blockSignals(False)
-                    self.field_nodes_v.blockSignals(False)
+            self.field_nodes_u.blockSignals(True)
+            self.field_nodes_v.blockSignals(True)
+            self.field_nodes_u.setValue(geometry.number_u)
+            if is_surface:
+                self.field_nodes_v.setValue(geometry.number_v)
+            self.field_nodes_u.blockSignals(False)
+            self.field_nodes_v.blockSignals(False)
 
-                    if isinstance(geometry, BSplineGeometry):
-                        self.field_order.blockSignals(True)
-                        self.field_order.setValue(self.selected_geometry.get_order())
-                        self.field_order.blockSignals(False)
-
-                    break
+            if isinstance(geometry, BSpline):
+                self.field_order.blockSignals(True)
+                self.field_order.setValue(geometry.get_order())
+                self.field_order.blockSignals(False)
+    
+    def calculate_continuity(self, *geometries) -> str:
+        """Return the continuity of the given geometries, returning None if invalid combination of geometries."""
+        if len(geometries) >= 2:
+            if len(set([type(_) for _ in geometries])) == 1:
+                return "no"
+            # If selected different types of geometries, return None.
+            else:
+                return None
 
     def preset_1(self):
-        print("Preset 1")
+        """Add two preset Bézier curves with G1 continuity."""
+        cp_1 = np.array([[[3,10,0], [4,7,0], [6,6,0], [7.5,7.5,0]]]).transpose()
+        cp_2 = np.array([[[7.5,7.5,0], [8.2,8.2,0], [11,7,0], [14,6,0]]]).transpose()
+        self.add_geometry(BezierCurve(cp_1, 25))
+        self.add_geometry(BezierCurve(cp_2, 25))
+    
+    def preset_2(self):
+        """Add two preset Bézier surfaces with C1 continuity."""
+        cp_1 = np.array([[[0,20,0], [8,21,5], [18,23,0]], [[0,17,0], [8,17,6], [18,17,3]], [[0,14,0], [8,14,6], [18,14,4]]]).transpose((2,0,1))
+        cp_2 = np.array([[[0,14,0], [8,14,6], [18,14,4]], [[0,11,0], [8,11,6], [18,11,5]], [[0,0,0], [8,0,0], [18,0,0]]]).transpose((2,0,1))
+        self.add_geometry(BezierSurface(cp_1, 25, 25))
+        self.add_geometry(BezierSurface(cp_2, 25, 25))
+    
+    def preset_3(self):
+        """Add two preset Hermite curves with C2 continuity."""
+        cp_1 = np.array([[[1,5,0], [3,8,0], [3,3,0], [1.9286,-1.2321,0]]]).transpose()
+        cp_2 = np.array([[[3,8,0], [6,4,0], [1.9286,-1.2321,0], [4.2857,-1.0714,0]]]).transpose()
+        self.add_geometry(HermiteCurve(cp_1, 25))
+        self.add_geometry(HermiteCurve(cp_2, 25))
+    
+    def preset_4(self):
+        """Add two preset Hermite surfaces with some continuity."""
+        cp_1 = np.array([
+            [[0,0,0], [0,10,0], [0,1,0], [0,11,0]],
+            [[10,0,0], [10,10,0], [10,1,0], [10,11,0]],
+            [[1,0,0], [1,10,0], [0,0,1], [0,10,1]],
+            [[11,0,0], [11,10,0], [10,0,1], [10,10,1]],
+        ]).transpose((2,0,1))
+        cp_2 = np.array([
+            [[10,0,0], [10,10,0], [10,1,0], [10,11,0]],
+            [[20,0,0], [20,10,0], [20,1,0], [20,11,0]],
+            [[11,0,0], [11,10,0], [10,0,1], [10,10,1]],
+            [[21,0,0], [21,10,0], [20,0,1], [20,10,1]],
+        ]).transpose((2,0,1))
+        # cp_1[:, 2:, 2:] = cp_1[:, :2, :2]
+        # cp_2[:, 2:, 2:] = cp_2[:, :2, :2]
+        self.add_geometry(HermiteSurface(cp_1, 25, 25))
+        self.add_geometry(HermiteSurface(cp_2, 25, 25))
+
+    def preset_4_1(self):
+        print("Homework 4, Bezier curve")
         cp = np.array([
             [3, 4, 6, 7.2, 11, 14],
             [10, 7, 6, 7.5, 7, 6],
@@ -542,8 +687,8 @@ class MainWindow(QMainWindow):
         geometry = BezierCurve(cp, 25, 25)
         self.add_geometry(geometry)
 
-    def preset_2(self):
-        print("Preset 2")
+    def preset_4_2(self):
+        print("Homework 4, Bezier surface")
         cp = np.array([
             [[1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8], [1, 3, 6, 8]],
             [[20, 21, 22, 23], [17, 17, 17, 17], [14, 14, 14, 14], [11, 11, 11, 11]],
@@ -556,7 +701,8 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     application = QApplication(sys.argv)
     window = MainWindow()
-    # window.setWindowTitle("Window Title")
+    window.setWindowTitle(PROGRAM_NAME)
+    window.setWindowIcon(QIcon("Images/logo.png"))
     window.show()
     # Start the application.
     sys.exit(application.exec_())

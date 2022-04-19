@@ -1,3 +1,7 @@
+"""
+Functions that calculate Bézier curves and surfaces.
+"""
+
 import math
 
 import numpy as np
