@@ -83,10 +83,12 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
                 self.dragged_point_id = point_id
                 self.set_selection_point_id(point_id)
                 self.set_selection_cp(actor_cp)
+                self.highlight_point(actor_cp, point_id)
             # A nodes actor was selected.
             elif actor_nodes is not None:
                 self.gui.set_selected_geometry(actor_nodes, append=is_multiselection)
                 self.set_selection_nodes(actor_nodes, append=is_multiselection)
+                self.highlight_actor(actor_nodes)
 
         self.GetInteractor().Render()
 
