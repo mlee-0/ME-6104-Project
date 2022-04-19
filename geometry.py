@@ -86,12 +86,16 @@ class Geometry(ABC):
     property_default_nodes.SetEdgeColor(GRAY_20)
     property_default_nodes.SetVertexVisibility(False)
     property_default_nodes.SetEdgeVisibility(True)
+    # property_default_nodes.SetRenderLinesAsTubes(True)
+    # property_default_nodes.SetLineWidth(5)
     property_default_nodes.SetLighting(False)
     property_highlight_nodes = vtk.vtkProperty()
     property_highlight_nodes.SetColor(WHITE)
     property_highlight_nodes.SetEdgeColor(BLACK)
     property_highlight_nodes.SetVertexVisibility(False)
     property_highlight_nodes.SetEdgeVisibility(True)
+    # property_highlight_nodes.SetRenderLinesAsTubes(True)
+    # property_highlight_nodes.SetLineWidth(5)
     property_highlight_nodes.SetLighting(False)
 
     def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None, order: int = None):
@@ -340,11 +344,6 @@ class Geometry(ABC):
 
 class Curve(Geometry):
     geometry_type = "curve"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.actor_nodes.GetProperty().SetRenderLinesAsTubes(True)
-        self.actor_nodes.GetProperty().SetLineWidth(5)
     
     def resize_cp(self, number_u: int, _) -> np.ndarray:
         return Geometry.resize_cp_1d(self.cp, number_u)
