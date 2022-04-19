@@ -650,7 +650,7 @@ class MainWindow(QMainWindow):
                 self.field_order.setValue(geometry.get_order())
                 self.field_order.blockSignals(False)
     
-    def calculate_continuity(self, *geometries) -> str:
+    def calculate_continuity(self, *geometries) -> Continuity:
         """Return the continuity of the given geometries, returning None if continuity cannot be calculated."""
         if len(geometries) >= 2:
             geometry_classes = set([type(_) for _ in geometries])
@@ -668,13 +668,11 @@ class MainWindow(QMainWindow):
                     for i in range(len(geometries) - 1):
                         for j in range(i, len(geometries)):
                             continuity = continuity_of(geometries[i].cp, geometries[j].cp)
-                            if continuity is not None:
+                            if continuity:
                                 continuities.append(continuity)
                     # Return the lowest continuity found.
                     if len(continuities) > 0:
-                        pass
-                        min_continuity = continuities[0]
-                        return min_continuity
+                        return min(continuities)
                     # No continuity was found.
                     else:
                         return 'no'
