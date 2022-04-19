@@ -489,7 +489,7 @@ class MainWindow(QMainWindow):
             geometry = self.selected_geometry[0]
 
             # Lower the order for B-spline geometries if it is too high.
-            if isinstance(geometry, BSplineGeometry):
+            if isinstance(geometry, BSpline):
                 max_order = geometry.max_order(value)
                 if self.field_order.value() > max_order:
                     self.field_order.setValue(max_order)
@@ -517,7 +517,7 @@ class MainWindow(QMainWindow):
             geometry = self.selected_geometry[0]
 
             # Lower the order entered by the user if it is too high.
-            if isinstance(geometry, BSplineGeometry):
+            if isinstance(geometry, BSpline):
                 max_order = geometry.max_order()
                 if value > geometry.max_order():
                     self.field_order.blockSignals(True)
@@ -598,13 +598,13 @@ class MainWindow(QMainWindow):
                 self.field_z.blockSignals(False)
             
             # Load the remaining fields.
-            self.fields_number_cp.setEnabled(True)
+            self.fields_number_cp.setEnabled(not isinstance(geometry, Hermite))
             self.fields_number_nodes.setEnabled(True)
             self.field_cp_v.setEnabled(is_surface)
             self.field_nodes_v.setEnabled(is_surface)
             self.fields_order.setEnabled(True)
-            self.field_order.setVisible(isinstance(geometry, BSplineGeometry))
-            self.label_order.setVisible(not isinstance(geometry, BSplineGeometry))
+            self.field_order.setVisible(isinstance(geometry, BSpline))
+            self.label_order.setVisible(not isinstance(geometry, BSpline))
             self.button_delete.setEnabled(True)
 
             self.field_cp_u.blockSignals(True)
@@ -623,7 +623,7 @@ class MainWindow(QMainWindow):
             self.field_nodes_u.blockSignals(False)
             self.field_nodes_v.blockSignals(False)
 
-            if isinstance(geometry, BSplineGeometry):
+            if isinstance(geometry, BSpline):
                 self.field_order.blockSignals(True)
                 self.field_order.setValue(geometry.get_order())
                 self.field_order.blockSignals(False)

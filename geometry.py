@@ -307,10 +307,10 @@ class Surface(Geometry):
     def resize_cp(self, number_u: int, number_v: int) -> np.ndarray:
         return Geometry.resize_cp_2d(self.cp, number_u, number_v)
 
-class BezierGeometry(Geometry):
+class Bezier(Geometry):
     geometry_name = Geometry.BEZIER
 
-class BezierCurve(BezierGeometry, Curve):
+class BezierCurve(Bezier, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
         return bezier.curve(cp, number_u)
@@ -318,7 +318,7 @@ class BezierCurve(BezierGeometry, Curve):
     def get_order(self) -> int:
         return self.cp.shape[1] - 1
 
-class BezierSurface(BezierGeometry, Surface):
+class BezierSurface(Bezier, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         return bezier.surface(cp, number_u, number_v)
@@ -326,14 +326,14 @@ class BezierSurface(BezierGeometry, Surface):
     def get_order(self) -> Tuple[int, int]:
         return (self.cp.shape[1] - 1, self.cp.shape[2] - 1)
 
-class HermiteGeometry(Geometry):
+class Hermite(Geometry):
     geometry_name = Geometry.HERMITE
 
     def resize_cp(self, *args, **kwargs) -> None:
         """Return None because Hermite geometries have a fixed number of control points."""
         return None
 
-class HermiteCurve(HermiteGeometry, Curve):
+class HermiteCurve(Hermite, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         # Pass a copy of the array to prevent modifying the original array inside this function.
@@ -342,7 +342,7 @@ class HermiteCurve(HermiteGeometry, Curve):
     def get_order(self):
         return 3
 
-class HermiteSurface(HermiteGeometry, Surface):
+class HermiteSurface(Hermite, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
         # Pass a copy of the array to prevent modifying the original array inside this function.
@@ -351,13 +351,13 @@ class HermiteSurface(HermiteGeometry, Surface):
     def get_order(self):
         return (3, 3)
 
-class BSplineGeometry(Geometry):
+class BSpline(Geometry):
     geometry_name = Geometry.BSPLINE
 
     def get_order(self) -> int:
         return self.order
 
-class BSplineCurve(BSplineGeometry, Curve):
+class BSplineCurve(BSpline, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, _, order: int) -> np.ndarray:
         return bspline.curve(cp, number_u, order)
@@ -366,7 +366,7 @@ class BSplineCurve(BSplineGeometry, Curve):
         """Return the highest order that this geometry can have, based on the given number of control points."""
         return self.get_number_cp_u() if number_cp_u is None else number_cp_u
 
-class BSplineSurface(BSplineGeometry, Surface):
+class BSplineSurface(BSpline, Surface):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, order: int):
         return bspline.surface(cp, number_u, number_v, order)
