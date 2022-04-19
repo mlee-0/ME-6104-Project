@@ -67,7 +67,7 @@ def BezierCurveContinuity(cp1, cp2):
         if (div1 == div1[0]).all() or (div2 == div2[0]).all():
             return 'G1'
         return 'C0/G0'
-    return 'No continuity'
+    return None
 
 
 # def BezierSurfaceContinuity(cp1, cp2):
@@ -91,7 +91,7 @@ def BezierCurveContinuity(cp1, cp2):
 #     for i in range(len(p1sides)):
 #         for j in range(len(p2sides)):
 #             ret = HermiteCurveContinuity(p1sides[i], p2sides[j])
-#             if ret != 'No continuity':
+#             if ret is not None:
 #                 return ret
 #     return ret
 

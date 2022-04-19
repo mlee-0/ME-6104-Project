@@ -58,7 +58,7 @@ def HermiteCurveContinuity(p1, p2):
         if (p1.T[3] / p2.T[2] == (p1.T[3] / p2.T[2])[0]).all() or (p2.T[3] / p1.T[2] == (p2.T[3] / p1.T[2])[0]).all():
             return 'G1'
         return 'C0/G0'
-    return 'No continuity'
+    return None
 
 
 # Function to calculate continuity between Hermite Curves
@@ -81,7 +81,7 @@ def HermiteSurfaceContinuity(p1, p2):
         for j in range(len(p2sides)):
             if (p1sides[i] == p2sides[j]).all():
                 return 'C0/G0'
-    return 'No Continuity'
+    return None
 
 
 # # Initialize control points
