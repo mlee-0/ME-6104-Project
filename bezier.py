@@ -36,6 +36,7 @@ def surface(cp, num_u, num_v):
 
 
 def BezierCurveContinuity(cp1, cp2):
+    """Return the continuity of two Bézier curves as a tuple: (str, int), or return None if no continuity exists."""
     diffcp1 = []
     diffcp2 = []
     for x, y in zip(cp1[:, :, 0].T[0::], cp1[:, :, 0].T[1::]):
@@ -52,8 +53,8 @@ def BezierCurveContinuity(cp1, cp2):
     if (cp1[:, cp1.shape[1] - 1, :] == cp2[:, 0, :]).all() or (cp2[:, cp2.shape[1] - 1, :] == cp1[:, 0, :]).all():
         if (diffcp1[len(diffcp1) - 1] == diffcp2[0]).all() or (diffcp2[len(diffcp2) - 1] == diffcp1[0]).all():
             if (diff2cp1[len(diff2cp1) - 1] == diff2cp2[0]).all() or (diff2cp2[len(diff2cp2) - 1] == diff2cp1[0]).all():
-                return 'C2'
-            return 'C1'
+                return ('C', 2)
+            return ('C', 1)
         div1 = diffcp1[len(diffcp1) - 1] / diffcp2[0]
         nan_array = np.isnan(div1)
         not_nan_array = ~ nan_array
@@ -65,12 +66,13 @@ def BezierCurveContinuity(cp1, cp2):
         div2 = div2[not_nan_array]
 
         if (div1 == div1[0]).all() or (div2 == div2[0]).all():
-            return 'G1'
-        return 'C0/G0'
+            return ('G', 1)
+        return ('CG', 0)
     return None
 
 
 # def BezierSurfaceContinuity(cp1, cp2):
+#     """Return the continuity of two Bézier surfaces as a tuple: (str, int), or return None if no continuity exists."""
 #     cp1sides = []
 #     add = np.array()
 #     for i in range(len(cp1)):

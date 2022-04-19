@@ -40,6 +40,7 @@ def HermiteSurface(p, num_u, num_v):
 
 # Function to calculate continuity between Hermite Curves
 def HermiteCurveContinuity(p1, p2):
+    """Return the continuity of two Hermite curves as a tuple (str, int), or return None if no continuity exists."""
     # Calculate the starting and ending tangents.
     # p1[:, 2:4] -= p1[:, 0:2]
     M = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [12, -12, 6, 6], [-6, 6, -4, -2]])
@@ -51,18 +52,19 @@ def HermiteCurveContinuity(p1, p2):
     if (p1[:, 1, :] == p2[:, 0, :]).all() or (p2[:, 1, :] == p1[:, 0, :]).all():
         if (p1[:, 3, :] == p2[:, 2, :]).all() or (p2[:, 3, :] == p1[:, 2, :]).all():
             if (p1u1 == p2u0).all() or (p1u0 == p2u1).all():
-                return 'C2'
-            return 'C1'
+                return ('C', 2)
+            return ('C', 1)
         if 0 in p1[:, 2, :] or 0 in p1[:, 3, :]:
-            return 'C0/G0'
+            return ('CG', 0)
         if (p1[:, 3, :] / p2[:, 2, :] == (p1[:, 3, :] / p2[:, 2, :])[0]).all() or (p2[:, 3, :] / p1[:, 2, :] == (p2[:, 3, :] / p1[:, 2, :])[0]).all():
-            return 'G1'
-        return 'C0/G0'
+            return ('G', 1)
+        return ('CG', 0)
     return None
 
 
 # Function to calculate continuity between Hermite Curves
 def HermiteSurfaceContinuity(p1, p2):
+    """Return the continuity of two Hermite surfaces as a tuple (str, int), or return None if no continuity exists."""
     p1sides = np.zeros((4, len(p1), len(p1[0])))
     for i in range(len(p1)):
         p1sides[0][i] = np.array([p1[i][0][0], p1[i][0][1], p1[i][2][0], p1[i][2][1]])
@@ -80,7 +82,7 @@ def HermiteSurfaceContinuity(p1, p2):
     for i in range(len(p1sides)):
         for j in range(len(p2sides)):
             if (p1sides[i] == p2sides[j]).all():
-                return 'C0/G0'
+                return ('CG', 0)
     return None
 
 
