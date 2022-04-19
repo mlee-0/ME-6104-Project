@@ -13,15 +13,14 @@ from geometry import Geometry
 class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     """A class that defines what happens when the mouse is clicked, released, and moved."""
 
-    # The number multiplied to mouse event positions to fix incorrect values. On macOS, mouse event positions are twice the expected values.
-    DISPLAY_SCALE = 0.5 if sys.platform == "darwin" else 1.0
-
     def __init__(self, gui):
         self.gui = gui
 
         # Create the picker objects used to select geometry on the screen. A vtkCellPicker selects nodes actors, and a vtkPointPicker selects a single point on control points actors.
         self.nodes_picker = vtk.vtkCellPicker()
         self.point_picker = vtk.vtkPointPicker()
+        # Specify a tolerance for the nodes picker to allow curves to be selectable.
+        self.nodes_picker.SetTolerance(0.01)
         # Initialize the list of actors from which each picker picks from. This allows one picker to only pick nodes actors and one picker to only pick control points actors. Actors must be added to these lists when they are created.
         self.nodes_picker.InitializePickList()
         self.point_picker.InitializePickList()
@@ -84,10 +83,12 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
                 self.dragged_point_id = point_id
                 self.set_selection_point_id(point_id)
                 self.set_selection_cp(actor_cp)
+                self.highlight_point(actor_cp, point_id)
             # A nodes actor was selected.
             elif actor_nodes is not None:
                 self.gui.set_selected_geometry(actor_nodes, append=is_multiselection)
                 self.set_selection_nodes(actor_nodes, append=is_multiselection)
+                self.highlight_actor(actor_nodes)
 
         self.GetInteractor().Render()
 
@@ -126,7 +127,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     def pick(self) -> None:
         """Perform picking where a mouse event last occurred."""
         # Get the mouse location in display coordinates.
-        position = [_*self.DISPLAY_SCALE for _ in self.GetInteractor().GetEventPosition()]
+        position = [_*self.gui.settings_field_mouse_modifier.value() for _ in self.GetInteractor().GetEventPosition()]
         # Perform picking.
         self.point_picker.Pick(
             position[0], position[1], 0, self.GetDefaultRenderer()

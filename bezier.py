@@ -36,11 +36,12 @@ def surface(cp, num_u, num_v):
 
 
 def BezierCurveContinuity(cp1, cp2):
+    """Return the continuity of two Bézier curves as a tuple: (str, int), or return None if no continuity exists."""
     diffcp1 = []
     diffcp2 = []
-    for x, y in zip(cp1.T[0::], cp1.T[1::]):
+    for x, y in zip(cp1[:, :, 0].T[0::], cp1[:, :, 0].T[1::]):
         diffcp1.append(y - x)
-    for x, y in zip(cp2.T[0::], cp2.T[1::]):
+    for x, y in zip(cp2[:, :, 0].T[0::], cp2[:, :, 0].T[1::]):
         diffcp2.append(y - x)
     diff2cp1 = []
     diff2cp2 = []
@@ -49,11 +50,11 @@ def BezierCurveContinuity(cp1, cp2):
     for x, y in zip(diffcp2[0::], diffcp2[1::]):
         diff2cp2.append(y - x)
 
-    if (cp1.T[len(cp1.T) - 1] == cp2.T[0]).all() or (cp2.T[len(cp2.T) - 1] == cp1.T[0]).all():
+    if (cp1[:, cp1.shape[1] - 1, :] == cp2[:, 0, :]).all() or (cp2[:, cp2.shape[1] - 1, :] == cp1[:, 0, :]).all():
         if (diffcp1[len(diffcp1) - 1] == diffcp2[0]).all() or (diffcp2[len(diffcp2) - 1] == diffcp1[0]).all():
             if (diff2cp1[len(diff2cp1) - 1] == diff2cp2[0]).all() or (diff2cp2[len(diff2cp2) - 1] == diff2cp1[0]).all():
-                return 'C2'
-            return 'C1'
+                return ('C', 2)
+            return ('C', 1)
         div1 = diffcp1[len(diffcp1) - 1] / diffcp2[0]
         nan_array = np.isnan(div1)
         not_nan_array = ~ nan_array
@@ -65,12 +66,13 @@ def BezierCurveContinuity(cp1, cp2):
         div2 = div2[not_nan_array]
 
         if (div1 == div1[0]).all() or (div2 == div2[0]).all():
-            return 'G1'
-        return 'C0/G0'
-    return 'No continuity'
+            return ('G', 1)
+        return ('CG', 0)
+    return None
 
 
 # def BezierSurfaceContinuity(cp1, cp2):
+#     """Return the continuity of two Bézier surfaces as a tuple: (str, int), or return None if no continuity exists."""
 #     cp1sides = []
 #     add = np.array()
 #     for i in range(len(cp1)):
@@ -91,13 +93,13 @@ def BezierCurveContinuity(cp1, cp2):
 #     for i in range(len(p1sides)):
 #         for j in range(len(p2sides)):
 #             ret = HermiteCurveContinuity(p1sides[i], p2sides[j])
-#             if ret != 'No continuity':
+#             if ret is not None:
 #                 return ret
 #     return ret
 
 # # Initialize control points
-cp_1 = np.array([[3, 10, 0], [4, 7, 0], [6, 6, 0], [7.5, 7.5, 0]]).transpose()
-cp_2 = np.array([[7.5, 7.5, 0], [8.2, 8.2, 0], [11, 7, 0], [14, 6, 0]]).transpose()
+cp_1 = np.array([[[3, 10, 0], [4, 7, 0], [6, 6, 0], [7.5, 7.5, 0]]]).transpose()
+cp_2 = np.array([[[7.5, 7.5, 0], [8.2, 8.2, 0], [11, 7, 0], [14, 6, 0]]]).transpose()
 print(BezierCurveContinuity(cp_1, cp_2))
 # cpp = np.array([[[1, 3, 6, 8],
 #                  [1, 3, 6, 8],
