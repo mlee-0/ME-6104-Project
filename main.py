@@ -36,7 +36,7 @@ class MainWindow(QMainWindow):
         menu_file.addAction("Settings...", self.show_settings)
         menu_file.addAction("About...", self.show_about)
         menu_presets = menu_bar.addMenu("Presets")
-        menu_presets.addAction(f"2 {Geometry.BEZIER} Curves", self.preset_1)
+        menu_presets.addAction(f"3 {Geometry.BEZIER} Curves", self.preset_1)
         menu_presets.addAction(f"2 {Geometry.BEZIER} Surfaces", self.preset_2)
         menu_presets.addAction(f"2 {Geometry.HERMITE} Curves", self.preset_3)
         menu_presets.addAction(f"2 {Geometry.HERMITE} Surfaces", self.preset_4)
@@ -678,12 +678,14 @@ class MainWindow(QMainWindow):
                         return 'no'
 
     def preset_1(self):
-        """Add two preset Bézier curves with G1 continuity."""
+        """Add three preset Bézier curves with G1 and C1 continuity."""
         cp_1 = np.array([[[3,10,0], [4,7,0], [6,6,0], [7.5,7.5,0]]]).transpose()
         cp_2 = np.array([[[7.5,7.5,0], [8.2,8.2,0], [11,7,0], [14,6,0]]]).transpose()
+        cp_3 = np.array([[[14,6,0], [17,5,0], [20,10,0], [23,15,0]]]).transpose()
         number_u = self.settings_field_nodes.value()
         self.add_geometry(BezierCurve(cp_1, number_u))
         self.add_geometry(BezierCurve(cp_2, number_u))
+        self.add_geometry(BezierCurve(cp_3, number_u))
     
     def preset_2(self):
         """Add two preset Bézier surfaces with C1 continuity."""
