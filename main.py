@@ -337,8 +337,10 @@ class MainWindow(QMainWindow):
         # Show the continuity of the geometries.
         elif len(self.selected_geometry) > 1:
             continuity = self.calculate_continuity(*self.selected_geometry)
-            if continuity:
+            # Continuity was calculated.
+            if continuity is not None:
                 self.label_selected.setText(f"{len(self.selected_geometry)} {self.selected_geometry[0].geometry_name} {self.selected_geometry[0].geometry_type}s have {continuity} continuity")
+            # Continuity cannot be calculated.
             else:
                 geometry_types = tuple(set([_.geometry_type for _ in self.selected_geometry]))
                 geometry_type = f"{geometry_types[0]}s" if len(geometry_types) == 1 else "geometries"
@@ -629,34 +631,57 @@ class MainWindow(QMainWindow):
                 self.field_order.blockSignals(False)
     
     def calculate_continuity(self, *geometries) -> str:
-        """Return the continuity of the given geometries, returning None if invalid combination of geometries."""
+        """Return the continuity of the given geometries, returning None if continuity cannot be calculated."""
         if len(geometries) >= 2:
-            if len(set([type(_) for _ in geometries])) == 1:
-                return "no"
-            # If selected different types of geometries, return None.
-            else:
-                return None
+            geometry_classes = set([type(_) for _ in geometries])
+            # Only calculate continuity if all selected geometries are of the same class.
+            if len(geometry_classes) == 1:
+                # Get the class's method for calculating continuity.
+                try:
+                    continuity_of = tuple(geometry_classes)[0].continuity
+                # The class does not have a method for calculating continuity.
+                except AttributeError:
+                    return None
+                else:
+                    continuities = []
+                    # Calculate continuities for all pairs of geometries.
+                    for i in range(len(geometries) - 1):
+                        for j in range(i, len(geometries)):
+                            continuity = continuity_of(geometries[i].cp, geometries[j].cp)
+                            if continuity is not None:
+                                continuities.append(continuity)
+                    # Return the lowest continuity found.
+                    if len(continuities) > 0:
+                        pass
+                        min_continuity = continuities[0]
+                        return min_continuity
+                    # No continuity was found.
+                    else:
+                        return 'no'
 
     def preset_1(self):
         """Add two preset Bézier curves with G1 continuity."""
         cp_1 = np.array([[[3,10,0], [4,7,0], [6,6,0], [7.5,7.5,0]]]).transpose()
         cp_2 = np.array([[[7.5,7.5,0], [8.2,8.2,0], [11,7,0], [14,6,0]]]).transpose()
-        self.add_geometry(BezierCurve(cp_1, 25))
-        self.add_geometry(BezierCurve(cp_2, 25))
+        number_u = self.settings_field_nodes.value()
+        self.add_geometry(BezierCurve(cp_1, number_u))
+        self.add_geometry(BezierCurve(cp_2, number_u))
     
     def preset_2(self):
         """Add two preset Bézier surfaces with C1 continuity."""
         cp_1 = np.array([[[0,20,0], [8,21,5], [18,23,0]], [[0,17,0], [8,17,6], [18,17,3]], [[0,14,0], [8,14,6], [18,14,4]]]).transpose((2,0,1))
         cp_2 = np.array([[[0,14,0], [8,14,6], [18,14,4]], [[0,11,0], [8,11,6], [18,11,5]], [[0,0,0], [8,0,0], [18,0,0]]]).transpose((2,0,1))
-        self.add_geometry(BezierSurface(cp_1, 25, 25))
-        self.add_geometry(BezierSurface(cp_2, 25, 25))
+        number_u = number_v = self.settings_field_nodes.value()
+        self.add_geometry(BezierSurface(cp_1, number_u, number_v))
+        self.add_geometry(BezierSurface(cp_2, number_u, number_v))
     
     def preset_3(self):
         """Add two preset Hermite curves with C2 continuity."""
         cp_1 = np.array([[[1,5,0], [3,8,0], [3,3,0], [1.9286,-1.2321,0]]]).transpose()
         cp_2 = np.array([[[3,8,0], [6,4,0], [1.9286,-1.2321,0], [4.2857,-1.0714,0]]]).transpose()
-        self.add_geometry(HermiteCurve(cp_1, 25))
-        self.add_geometry(HermiteCurve(cp_2, 25))
+        number_u = self.settings_field_nodes.value()
+        self.add_geometry(HermiteCurve(cp_1, number_u))
+        self.add_geometry(HermiteCurve(cp_2, number_u))
     
     def preset_4(self):
         """Add two preset Hermite surfaces with some continuity."""
@@ -674,8 +699,9 @@ class MainWindow(QMainWindow):
         ]).transpose((2,0,1))
         # cp_1[:, 2:, 2:] = cp_1[:, :2, :2]
         # cp_2[:, 2:, 2:] = cp_2[:, :2, :2]
-        self.add_geometry(HermiteSurface(cp_1, 25, 25))
-        self.add_geometry(HermiteSurface(cp_2, 25, 25))
+        number_u = number_v = self.settings_field_nodes.value()
+        self.add_geometry(HermiteSurface(cp_1, number_u, number_v))
+        self.add_geometry(HermiteSurface(cp_2, number_u, number_v))
 
     def preset_4_1(self):
         print("Homework 4, Bezier curve")

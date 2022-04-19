@@ -317,6 +317,10 @@ class BezierCurve(Bezier, Curve):
     
     def get_order(self) -> int:
         return self.cp.shape[1] - 1
+    
+    @staticmethod
+    def continuity(cp_1, cp_2) -> str:
+        return bezier.BezierCurveContinuity(cp_1, cp_2)
 
 class BezierSurface(Bezier, Surface):
     @staticmethod
@@ -325,6 +329,10 @@ class BezierSurface(Bezier, Surface):
     
     def get_order(self) -> Tuple[int, int]:
         return (self.cp.shape[1] - 1, self.cp.shape[2] - 1)
+    
+    # @staticmethod
+    # def continuity(cp_1, cp_2) -> str:
+    #     return bezier.BezierSurfaceContinuity(cp_1, cp_2)
 
 class Hermite(Geometry):
     geometry_name = Geometry.HERMITE
@@ -332,7 +340,7 @@ class Hermite(Geometry):
     def resize_cp(self, *args, **kwargs) -> None:
         """Return None because Hermite geometries have a fixed number of control points."""
         return None
-
+    
 class HermiteCurve(Hermite, Curve):
     @staticmethod
     def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
@@ -341,6 +349,10 @@ class HermiteCurve(Hermite, Curve):
     
     def get_order(self):
         return 3
+    
+    @staticmethod
+    def continuity(cp_1, cp_2) -> str:
+        return hermite.HermiteCurveContinuity(cp_1, cp_2)
 
 class HermiteSurface(Hermite, Surface):
     @staticmethod
@@ -350,6 +362,10 @@ class HermiteSurface(Hermite, Surface):
     
     def get_order(self):
         return (3, 3)
+    
+    @staticmethod
+    def continuity(cp_1, cp_2) -> str:
+        return hermite.HermiteSurfaceContinuity(cp_1, cp_2)
 
 class BSpline(Geometry):
     geometry_name = Geometry.BSPLINE
