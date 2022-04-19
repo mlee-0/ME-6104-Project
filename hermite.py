@@ -43,19 +43,19 @@ def HermiteCurveContinuity(p1, p2):
     # Calculate the starting and ending tangents.
     # p1[:, 2:4] -= p1[:, 0:2]
     M = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [12, -12, 6, 6], [-6, 6, -4, -2]])
-    p1u0 = np.dot(np.dot(np.array([0, 0, 0, 1]), M), np.array([p1.T[0], p1.T[1], p1.T[2], p1.T[3]]))
-    p1u1 = np.dot(np.dot(np.array([1, 1, 1, 1]), M), np.array([p1.T[0], p1.T[1], p1.T[2], p1.T[3]]))
-    p2u0 = np.dot(np.dot(np.array([0, 0, 0, 1]), M), np.array([p2.T[0], p2.T[1], p2.T[2], p2.T[3]]))
-    p2u1 = np.dot(np.dot(np.array([1, 1, 1, 1]), M), np.array([p2.T[0], p2.T[1], p2.T[2], p2.T[3]]))
+    p1u0 = np.dot(np.dot(np.array([0, 0, 0, 1]), M), p1[:, :, 0].transpose())
+    p1u1 = np.dot(np.dot(np.array([1, 1, 1, 1]), M), p1[:, :, 0].transpose())
+    p2u0 = np.dot(np.dot(np.array([0, 0, 0, 1]), M), p2[:, :, 0].transpose())
+    p2u1 = np.dot(np.dot(np.array([1, 1, 1, 1]), M), p2[:, :, 0].transpose())
 
-    if (p1.T[1] == p2.T[0]).all() or (p2.T[1] == p1.T[0]).all():
-        if (p1.T[3] == p2.T[2]).all() or (p2.T[3] == p1.T[2]).all():
+    if (p1[:, 1, :] == p2[:, 0, :]).all() or (p2[:, 1, :] == p1[:, 0, :]).all():
+        if (p1[:, 3, :] == p2[:, 2, :]).all() or (p2[:, 3, :] == p1[:, 2, :]).all():
             if (p1u1 == p2u0).all() or (p1u0 == p2u1).all():
                 return 'C2'
             return 'C1'
-        if 0 in p1.T[2] or 0 in p1.T[3]:
+        if 0 in p1[:, 2, :] or 0 in p1[:, 3, :]:
             return 'C0/G0'
-        if (p1.T[3] / p2.T[2] == (p1.T[3] / p2.T[2])[0]).all() or (p2.T[3] / p1.T[2] == (p2.T[3] / p1.T[2])[0]).all():
+        if (p1[:, 3, :] / p2[:, 2, :] == (p1[:, 3, :] / p2[:, 2, :])[0]).all() or (p2[:, 3, :] / p1[:, 2, :] == (p2[:, 3, :] / p1[:, 2, :])[0]).all():
             return 'G1'
         return 'C0/G0'
     return None
@@ -133,8 +133,8 @@ def HermiteSurfaceContinuity(p1, p2):
 p1 = np.array([[1, 10, 1, 2], [20, 22, 2, 2], [3, 2, 0, -1]])
 p2 = np.array([[10, 20, 4, 2], [22, 24, 4, 2], [2, 1, -2, -1]])
 
-cp_1 = np.array([[1, 5, 0], [3, 8, 0], [3, 3, 0], [1.9286, -1.2321, 0]]).transpose()
-cp_2 = np.array([[3, 8, 0], [6, 4, 0], [1.9286, -1.2321, 0], [4.2857, -1.0714, 0]]).transpose()
+cp_1 = np.array([[[1, 5, 0], [3, 8, 0], [3, 3, 0], [1.9286, -1.2321, 0]]]).transpose()
+cp_2 = np.array([[[3, 8, 0], [6, 4, 0], [1.9286, -1.2321, 0], [4.2857, -1.0714, 0]]]).transpose()
 
 # Create Hermite Curve with 100 discrete points
 # curve = HermiteCurve(p1, 100)
