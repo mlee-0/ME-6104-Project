@@ -60,8 +60,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(widget_camera_controls, 1, 1)
 
         # Create dialog windows.
-        self._make_settings_window()
-        self._make_about_window()
+        self.window_settings = self._make_settings_window()
+        self.window_about = self._make_about_window()
 
         # Disable fields.
         self.load_fields_with_geometry(None)
@@ -254,6 +254,7 @@ class MainWindow(QMainWindow):
         return widget
     
     def _make_widget_camera_controls(self) -> QWidget:
+        """Return a widget containing controls for the camera."""
         widget = QWidget()
         layout = QHBoxLayout(widget)
 
@@ -273,22 +274,23 @@ class MainWindow(QMainWindow):
 
         return widget
     
-    def _make_settings_window(self) -> None:
-        """Create the Settings window."""
-        self.window_settings = QDialog(self)
-        self.window_settings.setModal(True)
-        self.window_settings.setWindowTitle("Settings")
+    def _make_settings_window(self) -> QDialog:
+        """Return the Settings window."""
+        window = QDialog(self)
+        window.setModal(True)
+        window.setWindowTitle("Settings")
 
         main_layout = QVBoxLayout()
         main_layout.setAlignment(Qt.AlignTop)
-        self.window_settings.setLayout(main_layout)
+        window.setLayout(main_layout)
 
         self.settings_field_cp = QSpinBox()
         self.settings_field_cp.setRange(2, 100)
         self.settings_field_cp.setValue(3)
         self.settings_field_cp.setAlignment(Qt.AlignRight)
+        self.settings_field_cp.setToolTip("Default number of control points used when adding new geometries.")
         layout = QHBoxLayout()
-        layout.addWidget(QLabel("Default Number of Control Points:"))
+        layout.addWidget(QLabel("Default Control Points:"))
         layout.addWidget(self.settings_field_cp)
         main_layout.addLayout(layout)
 
@@ -296,20 +298,36 @@ class MainWindow(QMainWindow):
         self.settings_field_nodes.setRange(2, 100)
         self.settings_field_nodes.setValue(10)
         self.settings_field_nodes.setAlignment(Qt.AlignRight)
+        self.settings_field_nodes.setToolTip("Default number of nodes used when adding new geometries.")
         layout = QHBoxLayout()
-        layout.addWidget(QLabel("Default Number of Nodes:"))
+        layout.addWidget(QLabel("Default Nodes:"))
         layout.addWidget(self.settings_field_nodes)
         main_layout.addLayout(layout)
+
+        main_layout.addSpacing(10)
+
+        self.settings_field_mouse_modifier = QDoubleSpinBox()
+        self.settings_field_mouse_modifier.setMinimum(0.01)
+        self.settings_field_mouse_modifier.setValue(1.00)
+        self.settings_field_mouse_modifier.setSingleStep(0.1)
+        self.settings_field_mouse_modifier.setAlignment(Qt.AlignRight)
+        self.settings_field_mouse_modifier.setToolTip("Multiply mouse event positions, in pixels, by this amount to fix incorrect positions on some devices.")
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel("Mouse Position Modifier:"))
+        layout.addWidget(self.settings_field_mouse_modifier)
+        main_layout.addLayout(layout)
+
+        return window
     
-    def _make_about_window(self) -> None:
-        """Create the About window."""
-        self.window_about = QDialog(self)
-        self.window_about.setModal(True)
-        self.window_about.setWindowTitle("About")
+    def _make_about_window(self) -> QDialog:
+        """Return the About window."""
+        window = QDialog(self)
+        window.setModal(True)
+        window.setWindowTitle("About")
 
         main_layout = QVBoxLayout()
         main_layout.setAlignment(Qt.AlignCenter)
-        self.window_about.setLayout(main_layout)
+        window.setLayout(main_layout)
 
         logo = QLabel()
         image = QPixmap("Images/logo.png").scaledToHeight(100)
@@ -318,6 +336,8 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(QLabel(PROGRAM_NAME), alignment=Qt.AlignCenter)
         main_layout.addWidget(QLabel(f"Version: {'.'.join([str(_) for _ in PROGRAM_VERSION])}"), alignment=Qt.AlignCenter)
         main_layout.addWidget(QLabel(f"Authors: {', '.join(AUTHORS)}"), alignment=Qt.AlignCenter)
+
+        return window
 
     def show_settings(self) -> None:
         """Show the Settings window."""

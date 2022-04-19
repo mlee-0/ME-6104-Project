@@ -13,9 +13,6 @@ from geometry import Geometry
 class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     """A class that defines what happens when the mouse is clicked, released, and moved."""
 
-    # The number multiplied to mouse event positions to fix incorrect values. On macOS, mouse event positions are twice the expected values.
-    DISPLAY_SCALE = 0.5 if sys.platform == "darwin" else 1.0
-
     def __init__(self, gui):
         self.gui = gui
 
@@ -126,7 +123,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     def pick(self) -> None:
         """Perform picking where a mouse event last occurred."""
         # Get the mouse location in display coordinates.
-        position = [_*self.DISPLAY_SCALE for _ in self.GetInteractor().GetEventPosition()]
+        position = [_*self.gui.settings_field_mouse_modifier.value() for _ in self.GetInteractor().GetEventPosition()]
         # Perform picking.
         self.point_picker.Pick(
             position[0], position[1], 0, self.GetDefaultRenderer()
