@@ -81,7 +81,20 @@ def HermiteSurfaceContinuity(p1, p2):
 
     for i in range(len(p1sides)):
         for j in range(len(p2sides)):
-            if (p1sides[i] == p2sides[j]).all():
+            if (p1sides[i].T[0] == p2sides[j].T[0]).all() and (p1sides[i].T[1] == p2sides[j].T[1]).all():
+                p1 = p1sides[i]
+                p2 = p2sides[j]
+                if (p1sides[i].T[2] == p2sides[j].T[2]).all() and (p1sides[i].T[3] == p2sides[j].T[3]).all():
+                    M = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [12, -12, 6, 6], [-6, 6, -4, -2]])
+                    p1u0 = np.dot(np.dot(np.array([0, 0, 0, 1]), M), p1.transpose())
+                    p1u1 = np.dot(np.dot(np.array([1, 1, 1, 1]), M), p1.transpose())
+                    p2u0 = np.dot(np.dot(np.array([0, 0, 0, 1]), M), p2.transpose())
+                    p2u1 = np.dot(np.dot(np.array([1, 1, 1, 1]), M), p2.transpose())
+                    if (p1u1 == p2u0).all() or (p1u0 == p2u1).all():
+                        return ('C', 2)
+                    return ('C', 1)
+                if (p1[:, 3, :] / p2[:, 2, :] == (p1[:, 3, :] / p2[:, 2, :])[0]).all() or (p2[:, 3, :] / p1[:, 2, :] == (p2[:, 3, :] / p1[:, 2, :])[0]).all():
+                    return ('G', 1)
                 return ('CG', 0)
     return None
 
@@ -132,15 +145,15 @@ def HermiteSurfaceContinuity(p1, p2):
 
 # Starting and Ending points and tangents
 # p0, p1, p0u, p1u for x, y and z
-p1 = np.array([[1, 10, 1, 2], [20, 22, 2, 2], [3, 2, 0, -1]])
-p2 = np.array([[10, 20, 4, 2], [22, 24, 4, 2], [2, 1, -2, -1]])
-
-cp_1 = np.array([[[1, 5, 0], [3, 8, 0], [3, 3, 0], [1.9286, -1.2321, 0]]]).transpose()
-cp_2 = np.array([[[3, 8, 0], [6, 4, 0], [1.9286, -1.2321, 0], [4.2857, -1.0714, 0]]]).transpose()
+# p1 = np.array([[1, 10, 1, 2], [20, 22, 2, 2], [3, 2, 0, -1]])
+# p2 = np.array([[10, 20, 4, 2], [22, 24, 4, 2], [2, 1, -2, -1]])
+#
+# cp_1 = np.array([[[1, 5, 0], [3, 8, 0], [3, 3, 0], [1.9286, -1.2321, 0]]]).transpose()
+# cp_2 = np.array([[[3, 8, 0], [6, 4, 0], [1.9286, -1.2321, 0], [4.2857, -1.0714, 0]]]).transpose()
 
 # Create Hermite Curve with 100 discrete points
 # curve = HermiteCurve(p1, 100)
-print(HermiteCurveContinuity(cp_1, cp_2))
+# print(HermiteCurveContinuity(cp_1, cp_2))
 
 # Plot curve and starting and ending points
 # figure = plt.figure()
@@ -179,12 +192,12 @@ print(HermiteCurveContinuity(cp_1, cp_2))
 # ax.plot_surface(surface[0], surface[1], surface[2])
 # plt.show()
 
-cp_1 = np.array([[[0, 0, 0], [0, 10, 0], [0, 1, 0], [0, 1, 0]],
-                 [[10, 0, 0], [10, 10, 0], [0, 1, 0], [0, 1, 0]],
-                 [[1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 1]],
-                 [[1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 1]]]).transpose((2, 0, 1))
-cp_2 = np.array([[[10, 0, 0], [10, 10, 0], [0, 1, 0], [0, 1, 0]],
-                 [[20, 0, 0], [20, 10, 0], [0, 1, 0], [0, 1, 0]],
-                 [[1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 1]],
-                 [[1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 1]]]).transpose((2, 0, 1))
-print(HermiteSurfaceContinuity(cp_1, cp_2))
+# cp_1 = np.array([[[0, 0, 0], [0, 10, 0], [0, 1, 0], [0, 1, 0]],
+#                  [[10, 0, 0], [10, 10, 0], [0, 1, 0], [0, 1, 0]],
+#                  [[1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 1]],
+#                  [[1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 1]]]).transpose((2, 0, 1))
+# cp_2 = np.array([[[10, 0, 0], [10, 10, 0], [0, 1, 0], [0, 1, 0]],
+#                  [[20, 0, 0], [20, 10, 0], [0, 1, 0], [0, 1, 0]],
+#                  [[1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 1]],
+#                  [[1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 1]]]).transpose((2, 0, 1))
+# print(HermiteSurfaceContinuity(cp_1, cp_2))
