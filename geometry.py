@@ -392,32 +392,62 @@ class Hermite(Geometry):
     
 class HermiteCurve(Hermite, Curve):
     @staticmethod
-    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
-        # Pass a copy of the array to prevent modifying the original array inside this function.
-        return hermite.HermiteCurve(cp.copy(), number_u)
+    def calculate_tangents(cp: np.ndarray) -> np.ndarray:
+        """Return a copy of the array with the tangent vectors calculated."""
+        # Create a copy of the array to prevent modifying the original array.
+        cp = cp.copy()
+        cp[:, 2:4] -= cp[:, 0:2]
+        return cp
     
-    def get_order(self):
-        return 3
+    @staticmethod
+    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
+        return hermite.HermiteCurve(
+            HermiteCurve.calculate_tangents(cp),
+            number_u,
+        )
     
     @staticmethod
     def continuity(cp_1, cp_2) -> str:
-        continuity = hermite.HermiteCurveContinuity(cp_1, cp_2)
+        continuity = hermite.HermiteCurveContinuity(
+            HermiteCurve.calculate_tangents(cp_1),
+            HermiteCurve.calculate_tangents(cp_2),
+        )
         return Continuity(*continuity) if continuity is not None else Continuity()
         
+    def get_order(self):
+        return 3
 
 class HermiteSurface(Hermite, Surface):
     @staticmethod
-    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
-        # Pass a copy of the array to prevent modifying the original array inside this function.
-        return hermite.HermiteSurface(cp.copy(), number_u, number_v)
+    def calculate_tangents(cp: np.ndarray):
+        """Return a copy of the array with the tangent vectors and twist vectors calculated."""
+        # Create a copy of the array to prevent modifying the original array.
+        cp = cp.copy()
+        # Calculate the tangent vectors.
+        cp[:, 0:2, 2:4] -= cp[:, 0:2, 0:2]
+        cp[:, 2:4, 0:2] -= cp[:, 0:2, 0:2]
+        # Calculate the twist vectors.
+        cp[:, 2:4, 2:4] -= cp[:, 0:2, 0:2]
+        return cp
     
-    def get_order(self):
-        return (3, 3)
+    @staticmethod
+    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
+        return hermite.HermiteSurface(
+            HermiteSurface.calculate_tangents(cp),
+            number_u,
+            number_v,
+        )
     
     @staticmethod
     def continuity(cp_1, cp_2) -> Continuity:
-        continuity = hermite.HermiteSurfaceContinuity(cp_1, cp_2)
+        continuity = hermite.HermiteSurfaceContinuity(
+            HermiteSurface.calculate_tangents(cp_1),
+            HermiteSurface.calculate_tangents(cp_2),
+        )
         return Continuity(*continuity) if continuity is not None else Continuity()
+    
+    def get_order(self):
+        return (3, 3)
 
 class BSpline(Geometry):
     geometry_name = Geometry.BSPLINE

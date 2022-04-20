@@ -7,9 +7,6 @@ import numpy as np
 
 # Function to visualize a Hermite Curve
 def HermiteCurve(p, num):
-    # Calculate the starting and ending tangents.
-    p[:, 2:4] -= p[:, 0:2]
-
     points = np.linspace(0, 1, num)
     m = [[2, -2, 1, 1], [-3, 3, -2, -1], [0, 0, 1, 0], [1, 0, 0, 0]]
     curve = np.zeros((len(p), num, 1))
@@ -21,10 +18,6 @@ def HermiteCurve(p, num):
 
 # Function to visualize a Hermite Surface
 def HermiteSurface(p, num_u, num_v):
-    # Calculate the starting and ending tangents.
-    p[:, 0:2, 2:4] -= p[:, 0:2, 0:2]
-    p[:, 2:4, 0:2] -= p[:, 0:2, 0:2]
-
     points_u = np.linspace(0, 1, num_u)
     points_v = np.linspace(0, 1, num_v)
     surface = np.zeros((len(p), num_u, num_v))
@@ -41,8 +34,6 @@ def HermiteSurface(p, num_u, num_v):
 # Function to calculate continuity between Hermite Curves
 def HermiteCurveContinuity(p1, p2):
     """Return the continuity of two Hermite curves as a tuple (str, int), or return None if no continuity exists."""
-    # Calculate the starting and ending tangents.
-    # p1[:, 2:4] -= p1[:, 0:2]
     M = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [12, -12, 6, 6], [-6, 6, -4, -2]])
     p1u0 = np.dot(np.dot(np.array([0, 0, 0, 1]), M), p1[:, :, 0].transpose())
     p1u1 = np.dot(np.dot(np.array([1, 1, 1, 1]), M), p1[:, :, 0].transpose())
