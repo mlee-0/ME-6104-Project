@@ -71,31 +71,65 @@ def BezierCurveContinuity(cp1, cp2):
     return None
 
 
-# def BezierSurfaceContinuity(cp1, cp2):
-#     """Return the continuity of two Bézier surfaces as a tuple: (str, int), or return None if no continuity exists."""
-#     cp1sides = []
-#     add = np.array()
-#     for i in range(len(cp1)):
-#         add[i] = cp1
-#         cp1sides.append(np.array([p1[0][0], p1[0][1], p1[2][0], p1[2][1]]))
-#
-#
-#     cp1sides.append(np.array([p1[0][0], p1[1][0], p1[0][2], p1[1][2]]))
-#     cp1sides.append(np.array([p1[1][0], p1[1][1], p1[3][0], p1[3][1]]))
-#     cp1sides.append(np.array([p1[0][1], p1[1][1], p1[0][3], p1[1][3]]))
-#
-#     cp2sides = []
-#     p2sides.append(np.array([p2[0][0], p2[0][1], p2[2][0], p2[2][1]]))
-#     p2sides.append(np.array([p2[0][0], p2[1][0], p2[0][2], p2[1][2]]))
-#     p2sides.append(np.array([p2[1][0], p2[1][1], p2[3][0], p2[3][1]]))
-#     p2sides.append(np.array([p2[0][1], p2[1][1], p2[0][3], p2[1][3]]))
-#
-#     for i in range(len(p1sides)):
-#         for j in range(len(p2sides)):
-#             ret = HermiteCurveContinuity(p1sides[i], p2sides[j])
-#             if ret is not None:
-#                 return ret
-#     return ret
+def BezierSurfaceContinuity(cp1, cp2):
+    p1sides = np.zeros((4, len(cp1), len(cp1[0])))
+    for i in range(len(cp1)):
+        p1sides[0][i] = cp1[i][0]
+        p1sides[1][i] = cp1[i].T[0]
+        p1sides[2][i] = cp1[i][len(cp1) - 1]
+        p1sides[3][i] = cp1[i].T[len(cp1)-1]
+
+    p2sides = np.zeros((4, len(cp2), len(cp2[0])))
+    for i in range(len(cp2)):
+        p2sides[0][i] = cp2[i][0]
+        p2sides[1][i] = cp2[i].T[0]
+        p2sides[2][i] = cp2[i][len(cp2) - 1]
+        p2sides[3][i] = cp2[i].T[len(cp2)-1]
+
+    for i in range(len(p1sides)):
+        for j in range(len(p2sides)):
+            if (p1sides[i] == p2sides[j]).all() and (p1sides[i] == p2sides[j]).all():
+                cp1 = p1sides[i]
+                cp2 = p2sides[j]
+                diffcp1 = []
+                diffcp2 = []
+                for x, y in zip(cp1, cp1[1::]):
+                    diffcp1.append(y - x)
+                for x, y in zip(cp2, cp2[1::]):
+                    diffcp2.append(y - x)
+                diff2cp1 = []
+                diff2cp2 = []
+                for x, y in zip(diffcp1[0::], diffcp1[1::]):
+                    diff2cp1.append(y - x)
+                for x, y in zip(diffcp2[0::], diffcp2[1::]):
+                    diff2cp2.append(y - x)
+                if (cp1 == cp2).all():
+                    diffTrue = np.zeros((len(diffcp1),len(diffcp1[0])))
+                    for i in range(len(diffcp1)):
+                        diffTrue[i] = diffcp1[i] == diffcp2[i]
+                    if (diffTrue).all():
+                        diff2True = np.zeros((len(diff2cp1),len(diff2cp1[0])));
+                        for i in range(len(diff2cp1)):
+                            diff2True[i] = diff2cp1[i] == diff2cp2[i]
+                        if (diff2True).all():
+                            return ('C', 2)
+                        return ('C', 1)
+                    div1 = diffcp1[len(diffcp1) - 1] / diffcp2[0]
+                    nan_array = np.isnan(div1)
+                    not_nan_array = ~ nan_array
+                    div1 = div1[not_nan_array]
+
+                    div2 = diffcp2[len(diffcp2) - 1] / diffcp1[0]
+                    nan_array = np.isnan(div2)
+                    not_nan_array = ~ nan_array
+                    div2 = div2[not_nan_array]
+
+                    if (div1 == div1[0]).all() or (div2 == div2[0]).all():
+                        return ('G', 1)
+                    return ('CG', 0)
+                return ('CG', 0)
+    return None
+
 
 # # Initialize control points
 cp_1 = np.array([[[3, 10, 0], [4, 7, 0], [6, 6, 0], [7.5, 7.5, 0]]]).transpose()
@@ -113,3 +147,12 @@ print(BezierCurveContinuity(cp_1, cp_2))
 #                  [2, 6, 5, 5],
 #                  [2, 6, 5, 4],
 #                  [2, 3, 4, 3]]])
+
+cp_1 = np.array([[[0, 20, 0], [8, 21, 5], [18, 23, 0]],
+                 [[0, 17, 0], [8, 17, 6], [18, 17, 3]],
+                 [[0, 14, 0], [8, 14, 6], [18, 14, 4]]]).transpose((2, 0, 1))
+cp_2 = np.array([[[0, 14, 0], [8, 14, 6], [18, 14, 4]],
+                 [[0, 11, 0], [8, 11, 6], [18, 11, 5]],
+                 [[0, 0, 0], [8, 0, 0], [18, 0, 0]]]).transpose((2, 0, 1))
+print(BezierSurfaceContinuity(cp_1, cp_2))
+
