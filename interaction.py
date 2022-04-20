@@ -36,6 +36,9 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.selected_cp_actor = None
         self.selected_nodes_actor = []
 
+        # The previous position, in world coordinates, where the last mouse click or mouse move occured.
+        self.previous_position = None
+
         # Set functions to be called when mouse events occur.
         self.AddObserver("LeftButtonPressEvent", self.left_mouse_press)
         self.AddObserver("LeftButtonReleaseEvent", self.left_mouse_release)
@@ -60,6 +63,8 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
 
     def left_mouse_press(self, obj, event):
         self.pick()
+        self.previous_position = self.get_mouse_position_world()
+        
         is_multiselection = self.GetInteractor().GetShiftKey() or self.GetInteractor().GetControlKey()
         self.unhighlight_selection_point()
         if not is_multiselection:
@@ -97,6 +102,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
 
     def left_mouse_release(self, obj, event):
         self.pick()
+        self.previous_position = None
         self.is_dragging = False
         self.dragged_point_id = None
 
@@ -118,11 +124,27 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         # Run the default superclass function after custom behavior defined above.
         if not self.is_dragging:
             self.OnMouseMove()
-        # If dragging, update the position of the point being dragged.
-        elif self.dragged_point_id is not None:
-            position = self.nodes_picker.GetPickPosition()
-            self.gui.update_cp_by_mouse(position, self.dragged_point_id)
-            self.gui.set_selected_geometry(self.selected_cp_actor, self.dragged_point_id)
+        else:
+            # If dragging a control point, update its position.
+            if self.dragged_point_id is not None:
+                position = self.nodes_picker.GetPickPosition()
+                self.gui.drag_cp(position, self.dragged_point_id)
+                self.gui.set_selected_geometry(self.selected_cp_actor, self.dragged_point_id)
+            # If dragging a nodes, update the position of the entire geometry.
+            else:
+                if self.previous_position:
+                    current_position = self.get_mouse_position_world()
+                    translation = [current - previous for current, previous in zip(current_position, self.previous_position)]
+                    self.gui.drag_nodes(translation)
+                    self.previous_position = current_position
+    
+    def get_mouse_position_world(self):
+        """Return the position of the last mouse event in world coordinates."""
+        click_position = self.GetInteractor().GetEventPosition()
+        coordinate = vtk.vtkCoordinate()
+        coordinate.SetValue(click_position[0], click_position[1], 0)
+        coordinate.SetCoordinateSystemToDisplay()
+        return coordinate.GetComputedWorldValue(self.GetDefaultRenderer())
     
     def pick(self) -> None:
         """Perform picking where a mouse event last occurred."""

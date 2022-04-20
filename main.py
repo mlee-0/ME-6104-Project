@@ -510,13 +510,20 @@ class MainWindow(QMainWindow):
             self.ren.Render()
             self.iren.Render()
     
-    def update_cp_by_mouse(self, point: np.ndarray, point_id: int) -> None:
+    def drag_cp(self, point: np.ndarray, point_id: int) -> None:
         """Update the currently selected control point in the current geometry by specifying the new position."""
         if len(self.selected_geometry) == 1:
             geometry = self.selected_geometry[0]
             geometry.update_single_cp(point, point_id)
             self.ren.Render()
             self.iren.Render()
+    
+    def drag_nodes(self, translation: tuple) -> None:
+        """Translate the control points of the currently selected geometries."""
+        for geometry in self.selected_geometry:
+            geometry.translate(translation)
+        self.ren.Render()
+        self.iren.Render()
 
     def update_number_cp(self, value) -> None:
         """Update the number of control points in the current geometry."""

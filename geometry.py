@@ -184,6 +184,14 @@ class Geometry(ABC):
         self.cp[:, i, j] = point
         self.update()
         self.update_data()
+    
+    def translate(self, translation: Tuple[float, float, float]) -> None:
+        """Translate the entire shape."""
+        self.cp[0, ...] += translation[0]
+        self.cp[1, ...] += translation[1]
+        self.cp[2, ...] += translation[2]
+        self.update()
+        self.update_data()
 
     @staticmethod
     @abstractmethod
