@@ -306,6 +306,19 @@ class MainWindow(QMainWindow):
 
         main_layout.addSpacing(10)
 
+        self.settings_field_hermite_tangent_scaling = QDoubleSpinBox()
+        self.settings_field_hermite_tangent_scaling.setRange(1.0, 100.0)
+        self.settings_field_hermite_tangent_scaling.setValue(1.0)
+        self.settings_field_hermite_tangent_scaling.setAlignment(Qt.AlignRight)
+        self.settings_field_hermite_tangent_scaling.setToolTip(f"Increase this value to increase the effect that modifying {Geometry.HERMITE} tangent vectors has on the shape.")
+        self.settings_field_hermite_tangent_scaling.valueChanged.connect(self.update_hermite_tangent_scaling)
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel(f"{Geometry.HERMITE} Tangent Scaling:"))
+        layout.addWidget(self.settings_field_hermite_tangent_scaling)
+        main_layout.addLayout(layout)
+
+        main_layout.addSpacing(10)
+
         self.settings_field_mouse_modifier = QDoubleSpinBox()
         self.settings_field_mouse_modifier.setMinimum(0.01)
         self.settings_field_mouse_modifier.setValue(1.00)
@@ -677,6 +690,15 @@ class MainWindow(QMainWindow):
                     else:
                         return 'no'
 
+    def update_hermite_tangent_scaling(self, value: float) -> None:
+        """Update the Hermite tangent scaling value and update all Hermite geometries."""
+        Hermite.hermite_tangent_scaling = value
+        for geometry in self.geometries:
+            if isinstance(geometry, Hermite):
+                geometry.update()
+        self.ren.Render()
+        self.iren.Render()
+    
     def preset_1(self):
         """Add three preset Bézier curves with G1 and C1 continuity."""
         cp_1 = np.array([[[3,10,0], [4,7,0], [6,6,0], [7.5,7.5,0]]]).transpose()

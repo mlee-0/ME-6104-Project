@@ -386,6 +386,9 @@ class BezierSurface(Bezier, Surface):
 class Hermite(Geometry):
     geometry_name = Geometry.HERMITE
 
+    # The value multiplied to Hermite tangent vectors and twist vectors. A higher value increases the effect that modifying tangent vectors has on the shape.
+    hermite_tangent_scaling = 1.0
+
     def resize_cp(self, *args, **kwargs) -> None:
         """Return None because Hermite geometries have a fixed number of control points."""
         return None
@@ -396,7 +399,7 @@ class HermiteCurve(Hermite, Curve):
         """Return a copy of the array with the tangent vectors calculated."""
         # Create a copy of the array to prevent modifying the original array.
         cp = cp.copy()
-        cp[:, 2:4] -= cp[:, 0:2]
+        cp[:, 2:4] = (cp[:, 2:4] - cp[:, 0:2]) * Hermite.hermite_tangent_scaling
         return cp
     
     @staticmethod
@@ -424,10 +427,10 @@ class HermiteSurface(Hermite, Surface):
         # Create a copy of the array to prevent modifying the original array.
         cp = cp.copy()
         # Calculate the tangent vectors.
-        cp[:, 0:2, 2:4] -= cp[:, 0:2, 0:2]
-        cp[:, 2:4, 0:2] -= cp[:, 0:2, 0:2]
+        cp[:, 0:2, 2:4] = (cp[:, 0:2, 2:4] - cp[:, 0:2, 0:2]) * Hermite.hermite_tangent_scaling
+        cp[:, 2:4, 0:2] = (cp[:, 2:4, 0:2] - cp[:, 0:2, 0:2]) * Hermite.hermite_tangent_scaling
         # Calculate the twist vectors.
-        cp[:, 2:4, 2:4] -= cp[:, 0:2, 0:2]
+        cp[:, 2:4, 2:4] = (cp[:, 2:4, 2:4] - cp[:, 0:2, 0:2]) * Hermite.hermite_tangent_scaling
         return cp
     
     @staticmethod
