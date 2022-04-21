@@ -306,6 +306,19 @@ class MainWindow(QMainWindow):
 
         main_layout.addSpacing(10)
 
+        self.settings_field_hermite_tangent_scaling = QDoubleSpinBox()
+        self.settings_field_hermite_tangent_scaling.setRange(1.0, 100.0)
+        self.settings_field_hermite_tangent_scaling.setValue(1.0)
+        self.settings_field_hermite_tangent_scaling.setAlignment(Qt.AlignRight)
+        self.settings_field_hermite_tangent_scaling.setToolTip(f"Increase this value to increase the effect that modifying {Geometry.HERMITE} tangent vectors has on the shape.")
+        self.settings_field_hermite_tangent_scaling.valueChanged.connect(self.update_hermite_tangent_scaling)
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel(f"{Geometry.HERMITE} Tangent Scaling:"))
+        layout.addWidget(self.settings_field_hermite_tangent_scaling)
+        main_layout.addLayout(layout)
+
+        main_layout.addSpacing(10)
+
         self.settings_field_mouse_modifier = QDoubleSpinBox()
         self.settings_field_mouse_modifier.setMinimum(0.01)
         self.settings_field_mouse_modifier.setValue(1.00)
@@ -423,7 +436,9 @@ class MainWindow(QMainWindow):
         """Add a preset Hermite curve to the visualizer."""
         number_u = self.settings_field_nodes.value()
 
-        cp = np.array([[[0, 0, 0], [10, 10, 0], [5, 0, 0], [15, 10, 0]]]).transpose()
+        cp = np.array([
+            [[0, 0, 0], [10, 10, 0], [5, 0, 0], [15, 10, 0]]
+        ], dtype=float).transpose()
 
         geometry = HermiteCurve(cp, number_u)
         self.add_geometry(geometry)
@@ -465,7 +480,7 @@ class MainWindow(QMainWindow):
             [[10,0,0], [10,10,0], [10,1,0], [10,11,0]],
             [[1,0,0], [1,10,0], [0,0,1], [0,10,1]],
             [[11,0,0], [11,10,0], [10,0,1], [10,10,1]],
-        ]).transpose((2, 0, 1))
+        ], dtype=float).transpose((2, 0, 1))
 
         geometry = HermiteSurface(cp, number_u, number_v)
         self.add_geometry(geometry)
@@ -497,13 +512,20 @@ class MainWindow(QMainWindow):
             self.ren.Render()
             self.iren.Render()
     
-    def update_cp_by_mouse(self, point: np.ndarray, point_id: int) -> None:
+    def drag_cp(self, point: np.ndarray, point_id: int) -> None:
         """Update the currently selected control point in the current geometry by specifying the new position."""
         if len(self.selected_geometry) == 1:
             geometry = self.selected_geometry[0]
             geometry.update_single_cp(point, point_id)
             self.ren.Render()
             self.iren.Render()
+    
+    def drag_nodes(self, translation: tuple) -> None:
+        """Translate the control points of the currently selected geometries."""
+        for geometry in self.selected_geometry:
+            geometry.translate(translation)
+        self.ren.Render()
+        self.iren.Render()
 
     def update_number_cp(self, value) -> None:
         """Update the number of control points in the current geometry."""
@@ -677,6 +699,15 @@ class MainWindow(QMainWindow):
                     else:
                         return 'no'
 
+    def update_hermite_tangent_scaling(self, value: float) -> None:
+        """Update the Hermite tangent scaling value and update all Hermite geometries."""
+        Hermite.hermite_tangent_scaling = value
+        for geometry in self.geometries:
+            if isinstance(geometry, Hermite):
+                geometry.update()
+        self.ren.Render()
+        self.iren.Render()
+    
     def preset_1(self):
         """Add three preset Bézier curves with G1 and C1 continuity."""
         cp_1 = np.array([[[3,10,0], [4,7,0], [6,6,0], [7.5,7.5,0]]]).transpose()

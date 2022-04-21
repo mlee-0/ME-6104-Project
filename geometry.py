@@ -86,12 +86,16 @@ class Geometry(ABC):
     property_default_nodes.SetEdgeColor(GRAY_20)
     property_default_nodes.SetVertexVisibility(False)
     property_default_nodes.SetEdgeVisibility(True)
+    # property_default_nodes.SetRenderLinesAsTubes(True)
+    # property_default_nodes.SetLineWidth(5)
     property_default_nodes.SetLighting(False)
     property_highlight_nodes = vtk.vtkProperty()
     property_highlight_nodes.SetColor(WHITE)
     property_highlight_nodes.SetEdgeColor(BLACK)
     property_highlight_nodes.SetVertexVisibility(False)
     property_highlight_nodes.SetEdgeVisibility(True)
+    # property_highlight_nodes.SetRenderLinesAsTubes(True)
+    # property_highlight_nodes.SetLineWidth(5)
     property_highlight_nodes.SetLighting(False)
 
     def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None, order: int = None):
@@ -178,6 +182,14 @@ class Geometry(ABC):
         """Update the control point with the given point ID."""
         i, j = self.get_point_indices(point_id)
         self.cp[:, i, j] = point
+        self.update()
+        self.update_data()
+    
+    def translate(self, translation: Tuple[float, float, float]) -> None:
+        """Translate the entire shape."""
+        self.cp[0, ...] += translation[0]
+        self.cp[1, ...] += translation[1]
+        self.cp[2, ...] += translation[2]
         self.update()
         self.update_data()
 
@@ -340,11 +352,6 @@ class Geometry(ABC):
 
 class Curve(Geometry):
     geometry_type = "curve"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.actor_nodes.GetProperty().SetRenderLinesAsTubes(True)
-        self.actor_nodes.GetProperty().SetLineWidth(5)
     
     def resize_cp(self, number_u: int, _) -> np.ndarray:
         return Geometry.resize_cp_1d(self.cp, number_u)
@@ -387,38 +394,71 @@ class BezierSurface(Bezier, Surface):
 class Hermite(Geometry):
     geometry_name = Geometry.HERMITE
 
+    # The value multiplied to Hermite tangent vectors and twist vectors. A higher value increases the effect that modifying tangent vectors has on the shape.
+    hermite_tangent_scaling = 1.0
+
     def resize_cp(self, *args, **kwargs) -> None:
         """Return None because Hermite geometries have a fixed number of control points."""
         return None
     
 class HermiteCurve(Hermite, Curve):
     @staticmethod
-    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
-        # Pass a copy of the array to prevent modifying the original array inside this function.
-        return hermite.HermiteCurve(cp.copy(), number_u)
+    def calculate_tangents(cp: np.ndarray) -> np.ndarray:
+        """Return a copy of the array with the tangent vectors calculated."""
+        # Create a copy of the array to prevent modifying the original array.
+        cp = cp.copy()
+        cp[:, 2:4] = (cp[:, 2:4] - cp[:, 0:2]) * Hermite.hermite_tangent_scaling
+        return cp
     
-    def get_order(self):
-        return 3
+    @staticmethod
+    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
+        return hermite.HermiteCurve(
+            HermiteCurve.calculate_tangents(cp),
+            number_u,
+        )
     
     @staticmethod
     def continuity(cp_1, cp_2) -> str:
-        continuity = hermite.HermiteCurveContinuity(cp_1, cp_2)
+        continuity = hermite.HermiteCurveContinuity(
+            HermiteCurve.calculate_tangents(cp_1),
+            HermiteCurve.calculate_tangents(cp_2),
+        )
         return Continuity(*continuity) if continuity is not None else Continuity()
         
+    def get_order(self):
+        return 3
 
 class HermiteSurface(Hermite, Surface):
     @staticmethod
-    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
-        # Pass a copy of the array to prevent modifying the original array inside this function.
-        return hermite.HermiteSurface(cp.copy(), number_u, number_v)
+    def calculate_tangents(cp: np.ndarray):
+        """Return a copy of the array with the tangent vectors and twist vectors calculated."""
+        # Create a copy of the array to prevent modifying the original array.
+        cp = cp.copy()
+        # Calculate the tangent vectors.
+        cp[:, 0:2, 2:4] = (cp[:, 0:2, 2:4] - cp[:, 0:2, 0:2]) * Hermite.hermite_tangent_scaling
+        cp[:, 2:4, 0:2] = (cp[:, 2:4, 0:2] - cp[:, 0:2, 0:2]) * Hermite.hermite_tangent_scaling
+        # Calculate the twist vectors.
+        cp[:, 2:4, 2:4] = (cp[:, 2:4, 2:4] - cp[:, 0:2, 0:2]) * Hermite.hermite_tangent_scaling
+        return cp
     
-    def get_order(self):
-        return (3, 3)
+    @staticmethod
+    def calculate(cp: np.ndarray, number_u: int, number_v: int, _):
+        return hermite.HermiteSurface(
+            HermiteSurface.calculate_tangents(cp),
+            number_u,
+            number_v,
+        )
     
     @staticmethod
     def continuity(cp_1, cp_2) -> Continuity:
-        continuity = hermite.HermiteSurfaceContinuity(cp_1, cp_2)
+        continuity = hermite.HermiteSurfaceContinuity(
+            HermiteSurface.calculate_tangents(cp_1),
+            HermiteSurface.calculate_tangents(cp_2),
+        )
         return Continuity(*continuity) if continuity is not None else Continuity()
+    
+    def get_order(self):
+        return (3, 3)
 
 class BSpline(Geometry):
     geometry_name = Geometry.BSPLINE
