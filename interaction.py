@@ -84,14 +84,24 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
             
             # A control point was selected.
             if point_id >= 0:
-                self.gui.set_selected_geometry(actor_cp, point_id, append=is_multiselection)
+                self.gui.set_selected_point(point_id)
+                self.gui.set_selected_geometry(
+                    self.gui.get_geometry_of_actor(actor_cp),
+                    append=is_multiselection,
+                )
                 self.dragged_point_id = point_id
                 self.set_selection_point_id(point_id)
                 self.set_selection_cp(actor_cp)
                 self.highlight_point(actor_cp, point_id)
             # A nodes actor was selected.
             elif actor_nodes is not None:
-                self.gui.set_selected_geometry(actor_nodes, append=is_multiselection)
+                geometry = self.gui.get_geometry_of_actor(actor_nodes)
+                self.gui.set_selected_point(None)
+                self.gui.set_selected_geometry(
+                    geometry,
+                    append=is_multiselection,
+                )
+                self.gui.set_selection_geometry_list(geometry)
                 self.set_selection_nodes(actor_nodes, append=is_multiselection)
                 self.highlight_actor(actor_nodes)
 
@@ -129,7 +139,10 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
             if self.dragged_point_id is not None:
                 position = self.get_mouse_position_world()
                 self.gui.drag_cp(position, self.dragged_point_id)
-                self.gui.set_selected_geometry(self.selected_cp_actor, self.dragged_point_id)
+                self.gui.set_selected_point(self.dragged_point_id)
+                self.gui.set_selected_geometry(
+                    self.gui.get_geometry_of_actor(self.selected_cp_actor)
+                )
             # If dragging a nodes, update the position of the entire geometry.
             else:
                 if self.previous_position:
@@ -231,4 +244,5 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.selected_point_id = None
         self.selected_cp_actor = None
         self.selected_nodes_actor.clear()
+        self.gui.set_selected_point(None)
         self.gui.set_selected_geometry(None)

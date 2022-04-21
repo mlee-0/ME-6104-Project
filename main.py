@@ -3,9 +3,10 @@ Run this script to start the GUI.
 """
 
 import sys
+from typing import List
 
 import numpy as np
-from PyQt5.QtCore import Qt, QStringListModel
+from PyQt5.QtCore import Qt, QStringListModel, QItemSelectionModel
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QTabWidget, QListView, QListView, QAbstractItemView
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
@@ -109,17 +110,17 @@ class MainWindow(QMainWindow):
 
         main_layout.addStretch(1)
 
-        # self.geometry_list = QStringListModel()
-        # self.geometry_list_widget = QListView()
-        # self.geometry_list_widget.setModel(self.geometry_list)
-        # self.geometry_list_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        # self.geometry_list_widget.setDragDropMode(QAbstractItemView.InternalMove)
-        # self.geometry_list_widget.selectionModel().selectionChanged.connect(self.change_selected_geometry)
-        # main_layout.addWidget(self.geometry_list_widget)
-
         self.label_selected = QLabel()
         self.label_selected.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.label_selected)
+
+        self.geometry_list = QStringListModel()
+        self.geometry_list_widget = QListView()
+        self.geometry_list_widget.setModel(self.geometry_list)
+        self.geometry_list_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.geometry_list_widget.setDragDropMode(QAbstractItemView.InternalMove)
+        self.geometry_list_widget.selectionModel().selectionChanged.connect(self.highlight_selected_geometry)
+        main_layout.addWidget(self.geometry_list_widget)
 
         self.button_delete = QPushButton("Delete")
         self.button_delete.clicked.connect(self.remove_current)
@@ -393,6 +394,32 @@ class MainWindow(QMainWindow):
             self.label_selected.clear()
             self.label_order.clear()
     
+    def highlight_selected_geometry(self, new, old) -> None:
+        """Highlight the selected geometries in the visualizer, and load the fields with their information."""
+        self.iren.GetInteractorStyle().unhighlight_selection_point()
+        self.iren.GetInteractorStyle().unhighlight_selection_nodes()
+        
+        geometries = [str(_) for _ in self.geometries]
+        indices = self.geometry_list_widget.selectionModel().selectedIndexes()
+        is_multiselection = len(indices) > 1
+        for index in indices:
+            name = self.geometry_list.data(index, Qt.DisplayRole)
+            geometry = self.geometries[geometries.index(name)]
+            self.set_selected_geometry(geometry, append=is_multiselection)
+            self.iren.GetInteractorStyle().set_selection_nodes(geometry.actor_nodes, append=is_multiselection)
+            self.iren.GetInteractorStyle().highlight_actor(geometry.actor_nodes)
+        
+        self.ren.Render()
+        self.iren.Render()
+    
+    def set_selection_geometry_list(self, geometry: Geometry) -> None:
+        """Highlight the items in the geometry list for the given Geometry."""
+        for i in range(self.geometry_list.rowCount()):
+            index = self.geometry_list.index(i, 0)
+            name = self.geometry_list.data(index, Qt.DisplayRole)
+            if name == str(geometry):
+                self.geometry_list_widget.selectionModel().select(index, QItemSelectionModel.Select)
+    
     def set_camera_top(self) -> None:
         """Set the camera to look down along the Z direction."""
         camera = self.ren.GetActiveCamera()
@@ -417,9 +444,9 @@ class MainWindow(QMainWindow):
         """Add the Geometry object to the list of all geometries and add its actors to the visualizer."""
         self.geometries.append(geometry)
         
-        # row_index = self.geometry_list.rowCount()
-        # self.geometry_list.insertRow(row_index)
-        # self.geometry_list.setData(self.geometry_list.index(row_index, 0), str(geometry))
+        row_index = self.geometry_list.rowCount()
+        self.geometry_list.insertRow(row_index)
+        self.geometry_list.setData(self.geometry_list.index(row_index, 0), str(geometry))
         
         for actor in geometry.get_actors():
             self.ren.AddActor(actor)
@@ -590,8 +617,8 @@ class MainWindow(QMainWindow):
         for geometry in self.selected_geometry:
             self.iren.GetInteractorStyle().remove_from_pick_list(geometry)
             
-            # row_index = self.geometry_list.stringList().index(str(geometry))
-            # self.geometry_list.removeRow(row_index)
+            row_index = self.geometry_list.stringList().index(str(geometry))
+            self.geometry_list.removeRow(row_index)
             
             for actor in geometry.get_actors():
                 self.ren.RemoveActor(actor)
@@ -605,15 +632,17 @@ class MainWindow(QMainWindow):
         self.iren.Render()
 
     def get_geometry_of_actor(self, actor: vtk.vtkActor) -> Geometry:
-        """Return the Geometry object that contains the given actor."""
+        """Return the Geometry object that contains the given actor, or return None if none exists."""
         for geometry in self.geometries:
             if actor in geometry.get_actors():
                 return geometry
     
-    def set_selected_geometry(self, actor: vtk.vtkActor, point_id: int = None, append: bool = False) -> None:
-        """Set or append the Geometry corresponding to the given actor to the current selection, and set the point ID as the current selection."""
+    def set_selected_point(self, point_id: int = None) -> None:
+        """Set the point ID as the current selection."""
         self.selected_point = point_id
-        geometry = self.get_geometry_of_actor(actor) if actor else None
+    
+    def set_selected_geometry(self, geometry: Geometry = None, append: bool = False) -> None:
+        """Set or append the given Geometry to the current selection."""
         if append:
             if geometry is not None and geometry not in self.selected_geometry:
                 self.selected_geometry.append(geometry)
@@ -633,7 +662,7 @@ class MainWindow(QMainWindow):
             for fields in [self.fields_cp, self.fields_number_cp, self.fields_number_nodes, self.fields_order]:
                 fields.setEnabled(False)
             self.button_delete.setEnabled(False)
-            # self.geometry_list_widget.clearSelection()
+            self.geometry_list_widget.clearSelection()
         else:
             is_surface = isinstance(geometry, Surface)
             is_multiple_selected = len(self.selected_geometry) >= 2
