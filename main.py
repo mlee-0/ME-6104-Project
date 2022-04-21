@@ -436,7 +436,9 @@ class MainWindow(QMainWindow):
         """Add a preset Hermite curve to the visualizer."""
         number_u = self.settings_field_nodes.value()
 
-        cp = np.array([[[0, 0, 0], [10, 10, 0], [5, 0, 0], [15, 10, 0]]]).transpose()
+        cp = np.array([
+            [[0, 0, 0], [10, 10, 0], [5, 0, 0], [15, 10, 0]]
+        ], dtype=float).transpose()
 
         geometry = HermiteCurve(cp, number_u)
         self.add_geometry(geometry)
@@ -478,7 +480,7 @@ class MainWindow(QMainWindow):
             [[10,0,0], [10,10,0], [10,1,0], [10,11,0]],
             [[1,0,0], [1,10,0], [0,0,1], [0,10,1]],
             [[11,0,0], [11,10,0], [10,0,1], [10,10,1]],
-        ]).transpose((2, 0, 1))
+        ], dtype=float).transpose((2, 0, 1))
 
         geometry = HermiteSurface(cp, number_u, number_v)
         self.add_geometry(geometry)
