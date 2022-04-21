@@ -387,10 +387,10 @@ class BezierSurface(Bezier, Surface):
     def get_order(self) -> Tuple[int, int]:
         return (self.cp.shape[1] - 1, self.cp.shape[2] - 1)
     
-    # @staticmethod
-    # def continuity(cp_1, cp_2) -> str:
-    #     continuity = bezier.BezierSurfaceContinuity(cp_1, cp_2)
-    #     return Continuity(*continuity) if continuity is not None else Continuity()
+    @staticmethod
+    def continuity(cp_1, cp_2) -> str:
+        continuity = bezier.BezierSurfaceContinuity(cp_1, cp_2)
+        return Continuity(*continuity) if continuity is not None else Continuity()
 
 class Hermite(Geometry):
     geometry_name = Geometry.HERMITE
