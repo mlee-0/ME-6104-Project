@@ -7,7 +7,7 @@ import sys
 import numpy as np
 from PyQt5.QtCore import Qt, QStringListModel
 from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QListView, QListView, QAbstractItemView
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QTabWidget, QListView, QListView, QAbstractItemView
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
@@ -324,10 +324,21 @@ class MainWindow(QMainWindow):
         self.settings_field_mouse_modifier.setValue(1.00)
         self.settings_field_mouse_modifier.setSingleStep(0.1)
         self.settings_field_mouse_modifier.setAlignment(Qt.AlignRight)
-        self.settings_field_mouse_modifier.setToolTip("Multiply mouse event positions, in pixels, by this amount to fix incorrect positions on some devices.")
+        self.settings_field_mouse_modifier.setToolTip("Value multiplied to mouse positions, in pixels, fix incorrect positions on some devices.")
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Mouse Position Modifier:"))
         layout.addWidget(self.settings_field_mouse_modifier)
+        main_layout.addLayout(layout)
+
+        self.settings_field_mouse_z_depth = QDoubleSpinBox()
+        self.settings_field_mouse_z_depth.setRange(0.0, 10.0)
+        self.settings_field_mouse_z_depth.setValue(0.5)
+        self.settings_field_mouse_z_depth.setSingleStep(0.1)
+        self.settings_field_mouse_z_depth.setAlignment(Qt.AlignRight)
+        self.settings_field_mouse_z_depth.setToolTip("Increase this value to make mouse positions, in pixels, correspond to coordinates farther from the camera.")
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel("Mouse Z Depth:"))
+        layout.addWidget(self.settings_field_mouse_z_depth)
         main_layout.addLayout(layout)
 
         return window

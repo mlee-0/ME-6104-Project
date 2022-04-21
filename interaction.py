@@ -148,7 +148,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         position = self.get_mouse_position()
         coordinate = vtk.vtkCoordinate()
         coordinate.SetCoordinateSystemToDisplay()
-        coordinate.SetValue(position[0], position[1], 0.5)
+        coordinate.SetValue(position[0], position[1], self.gui.settings_field_mouse_z_depth.value())
         return coordinate.GetComputedWorldValue(self.GetDefaultRenderer())
     
     def pick(self) -> None:
