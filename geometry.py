@@ -99,7 +99,7 @@ class Geometry(ABC):
     property_highlight_nodes.SetLighting(False)
 
     def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None, order: int = None):
-        self.cp = cp
+        self.cp = cp.astype(float)
         self.number_u = number_u
         self.number_v = number_v
         self.order = order
