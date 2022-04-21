@@ -277,8 +277,9 @@ class Geometry(ABC):
         # Add an array of colors to control point data. Allows one control point to have a different color from the rest when it is selected.
         colors = vtk.vtkUnsignedCharArray()
         colors.SetNumberOfComponents(3)
+        colors.SetNumberOfTuples(len(self.ids_cp))
         for tuple_id in self.ids_cp:
-            colors.InsertTuple(tuple_id, Geometry.color_default_cp)
+            colors.SetTuple(tuple_id, Geometry.color_default_cp)
         self.data_cp.GetCellData().SetScalars(colors)
         self.data_cp.Modified()
 
