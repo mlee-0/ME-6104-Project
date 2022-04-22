@@ -84,9 +84,10 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
             
             # A control point was selected.
             if point_id >= 0:
+                geometry = self.gui.get_geometry_of_actor(actor_cp)
                 self.gui.set_selected_point(point_id)
                 self.gui.set_selected_geometry(
-                    self.gui.get_geometry_of_actor(actor_cp),
+                    geometry,
                     append=is_multiselection,
                 )
                 self.dragged_point_id = point_id
@@ -101,7 +102,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
                     geometry,
                     append=is_multiselection,
                 )
-                self.gui.set_selection_geometry_list(geometry)
+                self.gui.select_in_geometry_list(geometry)
                 self.set_selection_nodes(actor_nodes, append=is_multiselection)
                 self.highlight_actor(actor_nodes)
 
@@ -156,7 +157,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         position = self.GetInteractor().GetEventPosition()
         return tuple(round(_ * self.gui.settings_field_mouse_modifier.value()) for _ in position)
     
-    def get_mouse_position_world(self) -> Tuple[float]:
+    def get_mouse_position_world(self) -> Tuple[float, float, float]:
         """Return the position of the last mouse event in world coordinates."""
         position = self.get_mouse_position()
         coordinate = vtk.vtkCoordinate()

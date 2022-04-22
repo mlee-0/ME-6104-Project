@@ -323,7 +323,7 @@ class MainWindow(QMainWindow):
         self.settings_field_mouse_modifier = QDoubleSpinBox()
         self.settings_field_mouse_modifier.setMinimum(0.01)
         self.settings_field_mouse_modifier.setValue(1.00)
-        self.settings_field_mouse_modifier.setSingleStep(0.1)
+        self.settings_field_mouse_modifier.setSingleStep(0.5)
         self.settings_field_mouse_modifier.setAlignment(Qt.AlignRight)
         self.settings_field_mouse_modifier.setToolTip("Value multiplied to mouse positions, in pixels, fix incorrect positions on some devices.")
         layout = QHBoxLayout()
@@ -399,12 +399,12 @@ class MainWindow(QMainWindow):
         self.iren.GetInteractorStyle().unhighlight_selection_point()
         self.iren.GetInteractorStyle().unhighlight_selection_nodes()
         
-        geometries = [str(_) for _ in self.geometries]
+        names = [str(_) for _ in self.geometries]
         indices = self.geometry_list_widget.selectionModel().selectedIndexes()
         is_multiselection = len(indices) > 1
         for index in indices:
             name = self.geometry_list.data(index, Qt.DisplayRole)
-            geometry = self.geometries[geometries.index(name)]
+            geometry = self.geometries[names.index(name)]
             self.set_selected_geometry(geometry, append=is_multiselection)
             self.iren.GetInteractorStyle().set_selection_nodes(geometry.actor_nodes, append=is_multiselection)
             self.iren.GetInteractorStyle().highlight_actor(geometry.actor_nodes)
@@ -412,8 +412,8 @@ class MainWindow(QMainWindow):
         self.ren.Render()
         self.iren.Render()
     
-    def set_selection_geometry_list(self, geometry: Geometry) -> None:
-        """Highlight the items in the geometry list for the given Geometry."""
+    def select_in_geometry_list(self, geometry: Geometry) -> None:
+        """Highlight the item in the geometry list corresponding to the given Geometry."""
         for i in range(self.geometry_list.rowCount()):
             index = self.geometry_list.index(i, 0)
             name = self.geometry_list.data(index, Qt.DisplayRole)
