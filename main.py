@@ -568,10 +568,8 @@ class MainWindow(QMainWindow):
         self.iren.Render()
 
     def update_number_cp(self, value) -> None:
-        """Update the number of control points in the current geometry."""
-        if len(self.selected_geometry) == 1:
-            geometry = self.selected_geometry[0]
-
+        """Update the number of control points in the selected geometries."""
+        for geometry in self.selected_geometry:
             # Lower the order for B-spline geometries if it is too high.
             if isinstance(geometry, BSpline):
                 max_order = geometry.max_order(value)
@@ -580,39 +578,35 @@ class MainWindow(QMainWindow):
             
             cp = geometry.resize_cp(self.field_cp_u.value(), self.field_cp_v.value())
             geometry.update(cp)
-            self.ren.Render()
-            self.iren.Render()
-            self.update_label_selected()
+        self.ren.Render()
+        self.iren.Render()
+        self.update_label_selected()
     
     def update_number_nodes(self) -> None:
-        """Update the number of nodes in the current geometry."""
-        if len(self.selected_geometry) == 1:
-            geometry = self.selected_geometry[0]
+        """Update the number of nodes in the selected geometries."""
+        for geometry in self.selected_geometry:
             geometry.update(
                 number_u=self.field_nodes_u.value(),
                 number_v=self.field_nodes_v.value(),
             )
-            self.ren.Render()
-            self.iren.Render()
+        self.ren.Render()
+        self.iren.Render()
 
     def update_order(self, value) -> None:
-        """Update the order of the current geometry."""
-        if len(self.selected_geometry) == 1:
-            geometry = self.selected_geometry[0]
-
-            # Lower the order entered by the user if it is too high.
+        """Update the order of the selected geometries."""
+        for geometry in self.selected_geometry:
             if isinstance(geometry, BSpline):
                 max_order = geometry.max_order()
+                # Lower the order entered by the user if it is too high.
                 if value > geometry.max_order():
                     self.field_order.blockSignals(True)
                     self.field_order.setValue(max_order)
                     self.field_order.blockSignals(False)
                     return
-            
-            geometry.update(order=self.field_order.value())
-            self.ren.Render()
-            self.iren.Render()
-            self.update_label_selected()
+                geometry.update(order=self.field_order.value())
+        self.ren.Render()
+        self.iren.Render()
+        self.update_label_selected()
     
     def remove_selected_geometries(self) -> None:
         """Remove all currently selected geometries."""
@@ -657,7 +651,7 @@ class MainWindow(QMainWindow):
     def load_fields_with_selected_geometries(self) -> None:
         """Populate the fields in the GUI with the information of the selected geometries, or disable them if no geometries are selected."""
         self.update_label_selected()
-
+        
         if self.selected_geometry:
             is_multiple_selected = len(self.selected_geometry) >= 2
             geometry = self.selected_geometry[-1] if is_multiple_selected else self.selected_geometry[0]
@@ -670,17 +664,17 @@ class MainWindow(QMainWindow):
             if self.selected_point is not None:
                 self.fields_cp.setEnabled(not is_multiple_selected)
                 if not is_multiple_selected:
-                point = geometry.get_point(self.selected_point)
-                self.fields_cp.setEnabled(True)
-                self.field_x.blockSignals(True)
-                self.field_y.blockSignals(True)
-                self.field_z.blockSignals(True)
-                self.field_x.setValue(point[0])
-                self.field_y.setValue(point[1])
-                self.field_z.setValue(point[2])
-                self.field_x.blockSignals(False)
-                self.field_y.blockSignals(False)
-                self.field_z.blockSignals(False)
+                    point = geometry.get_point(self.selected_point)
+                    self.fields_cp.setEnabled(True)
+                    self.field_x.blockSignals(True)
+                    self.field_y.blockSignals(True)
+                    self.field_z.blockSignals(True)
+                    self.field_x.setValue(point[0])
+                    self.field_y.setValue(point[1])
+                    self.field_z.setValue(point[2])
+                    self.field_x.blockSignals(False)
+                    self.field_y.blockSignals(False)
+                    self.field_z.blockSignals(False)
             
             self.fields_number_cp.setEnabled(is_all_cp_modifiable)
             self.fields_number_nodes.setEnabled(True)
@@ -716,7 +710,7 @@ class MainWindow(QMainWindow):
                 fields.setEnabled(False)
             self.button_delete.setEnabled(False)
             self.geometry_list_widget.clearSelection()
-    
+
     def calculate_continuity(self, *geometries) -> Continuity:
         """Return the continuity of the given geometries, returning None if continuity cannot be calculated."""
         if len(geometries) >= 2:
