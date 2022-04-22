@@ -3,11 +3,12 @@ Run this script to start the GUI.
 """
 
 import sys
+from typing import List
 
 import numpy as np
-from PyQt5.QtCore import Qt, QStringListModel
+from PyQt5.QtCore import Qt, QStringListModel, QItemSelectionModel
 from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QListView, QListView, QAbstractItemView
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QTabWidget, QListView, QListView, QAbstractItemView
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
@@ -64,7 +65,7 @@ class MainWindow(QMainWindow):
         self.window_about = self._make_about_window()
 
         # Disable fields.
-        self.load_fields_with_geometry(None)
+        self.load_fields_with_selected_geometries()
 
         # Start the interactor after the layout is created.
         self.iren.Initialize()
@@ -109,20 +110,20 @@ class MainWindow(QMainWindow):
 
         main_layout.addStretch(1)
 
-        # self.geometry_list = QStringListModel()
-        # self.geometry_list_widget = QListView()
-        # self.geometry_list_widget.setModel(self.geometry_list)
-        # self.geometry_list_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        # self.geometry_list_widget.setDragDropMode(QAbstractItemView.InternalMove)
-        # self.geometry_list_widget.selectionModel().selectionChanged.connect(self.change_selected_geometry)
-        # main_layout.addWidget(self.geometry_list_widget)
-
         self.label_selected = QLabel()
         self.label_selected.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.label_selected)
 
+        self.geometry_list = QStringListModel()
+        self.geometry_list_widget = QListView()
+        self.geometry_list_widget.setModel(self.geometry_list)
+        self.geometry_list_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.geometry_list_widget.setDragDropMode(QAbstractItemView.InternalMove)
+        self.geometry_list_widget.selectionModel().selectionChanged.connect(self.highlight_selected_geometry)
+        main_layout.addWidget(self.geometry_list_widget)
+
         self.button_delete = QPushButton("Delete")
-        self.button_delete.clicked.connect(self.remove_current)
+        self.button_delete.clicked.connect(self.remove_selected_geometries)
         main_layout.addWidget(self.button_delete)
 
         return widget
@@ -229,8 +230,8 @@ class MainWindow(QMainWindow):
         self.field_order.setRange(1, 10)
         self.field_order.setAlignment(Qt.AlignRight)
         self.field_order.valueChanged.connect(self.update_order)
+        self.field_order.setVisible(False)
         self.label_order = QLabel()
-        self.label_order.setVisible(False)
         layout.addWidget(QLabel("Order:"))
         layout.addStretch(1)
         layout.addWidget(self.label_order)
@@ -322,12 +323,23 @@ class MainWindow(QMainWindow):
         self.settings_field_mouse_modifier = QDoubleSpinBox()
         self.settings_field_mouse_modifier.setMinimum(0.01)
         self.settings_field_mouse_modifier.setValue(1.00)
-        self.settings_field_mouse_modifier.setSingleStep(0.1)
+        self.settings_field_mouse_modifier.setSingleStep(0.5)
         self.settings_field_mouse_modifier.setAlignment(Qt.AlignRight)
-        self.settings_field_mouse_modifier.setToolTip("Multiply mouse event positions, in pixels, by this amount to fix incorrect positions on some devices.")
+        self.settings_field_mouse_modifier.setToolTip("Value multiplied to mouse positions, in pixels, fix incorrect positions on some devices.")
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Mouse Position Modifier:"))
         layout.addWidget(self.settings_field_mouse_modifier)
+        main_layout.addLayout(layout)
+
+        self.settings_field_mouse_z_depth = QDoubleSpinBox()
+        self.settings_field_mouse_z_depth.setRange(0.0, 10.0)
+        self.settings_field_mouse_z_depth.setValue(0.5)
+        self.settings_field_mouse_z_depth.setSingleStep(0.1)
+        self.settings_field_mouse_z_depth.setAlignment(Qt.AlignRight)
+        self.settings_field_mouse_z_depth.setToolTip("Increase this value to make mouse positions, in pixels, correspond to coordinates farther from the camera.")
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel("Mouse Z Depth:"))
+        layout.addWidget(self.settings_field_mouse_z_depth)
         main_layout.addLayout(layout)
 
         return window
@@ -362,11 +374,9 @@ class MainWindow(QMainWindow):
 
     def update_label_selected(self) -> None:
         """Display information about the currently selected geometries in the label."""
-        # Show the name and order of the geometry.
         if len(self.selected_geometry) == 1:
             geometry = self.selected_geometry[0]
-            self.label_selected.setText(str(geometry))
-            self.label_order.setText(Geometry.get_order_name(geometry.get_order()))
+            self.label_selected.clear()
         # Show the continuity of the geometries.
         elif len(self.selected_geometry) > 1:
             continuity = self.calculate_continuity(*self.selected_geometry)
@@ -380,7 +390,34 @@ class MainWindow(QMainWindow):
                 self.label_selected.setText(f"{len(self.selected_geometry)} {geometry_type} selected")
         else:
             self.label_selected.clear()
-            self.label_order.clear()
+    
+    def highlight_selected_geometry(self, new, old) -> None:
+        """Highlight the selected geometries in the visualizer, and load the fields with their information."""
+        self.iren.GetInteractorStyle().unhighlight_selection_point()
+        self.iren.GetInteractorStyle().unhighlight_selection_nodes()
+        
+        names = [str(_) for _ in self.geometries]
+        indices = self.geometry_list_widget.selectionModel().selectedIndexes()
+        is_multiselection = len(indices) > 1
+        for index in indices:
+            name = self.geometry_list.data(index, Qt.DisplayRole)
+            geometry = self.geometries[names.index(name)]
+            self.set_selected_geometry(geometry, append=is_multiselection)
+            self.iren.GetInteractorStyle().set_selection_nodes(geometry.actor_nodes, append=is_multiselection)
+            self.iren.GetInteractorStyle().highlight_actor(geometry.actor_nodes)
+        
+        self.load_fields_with_selected_geometries()
+        
+        self.ren.Render()
+        self.iren.Render()
+    
+    def select_in_geometry_list(self, geometry: Geometry) -> None:
+        """Highlight the item in the geometry list corresponding to the given Geometry. Changing the selection in the list emits the selectionChanged signal, which updates the fields."""
+        for i in range(self.geometry_list.rowCount()):
+            index = self.geometry_list.index(i, 0)
+            name = self.geometry_list.data(index, Qt.DisplayRole)
+            if name == str(geometry):
+                self.geometry_list_widget.selectionModel().select(index, QItemSelectionModel.Select)
     
     def set_camera_top(self) -> None:
         """Set the camera to look down along the Z direction."""
@@ -406,9 +443,9 @@ class MainWindow(QMainWindow):
         """Add the Geometry object to the list of all geometries and add its actors to the visualizer."""
         self.geometries.append(geometry)
         
-        # row_index = self.geometry_list.rowCount()
-        # self.geometry_list.insertRow(row_index)
-        # self.geometry_list.setData(self.geometry_list.index(row_index, 0), str(geometry))
+        row_index = self.geometry_list.rowCount()
+        self.geometry_list.insertRow(row_index)
+        self.geometry_list.setData(self.geometry_list.index(row_index, 0), str(geometry))
         
         for actor in geometry.get_actors():
             self.ren.AddActor(actor)
@@ -438,7 +475,7 @@ class MainWindow(QMainWindow):
 
         cp = np.array([
             [[0, 0, 0], [10, 10, 0], [5, 0, 0], [15, 10, 0]]
-        ], dtype=float).transpose()
+        ]).transpose()
 
         geometry = HermiteCurve(cp, number_u)
         self.add_geometry(geometry)
@@ -480,7 +517,7 @@ class MainWindow(QMainWindow):
             [[10,0,0], [10,10,0], [10,1,0], [10,11,0]],
             [[1,0,0], [1,10,0], [0,0,1], [0,10,1]],
             [[11,0,0], [11,10,0], [10,0,1], [10,10,1]],
-        ], dtype=float).transpose((2, 0, 1))
+        ]).transpose((2, 0, 1))
 
         geometry = HermiteSurface(cp, number_u, number_v)
         self.add_geometry(geometry)
@@ -528,10 +565,8 @@ class MainWindow(QMainWindow):
         self.iren.Render()
 
     def update_number_cp(self, value) -> None:
-        """Update the number of control points in the current geometry."""
-        if len(self.selected_geometry) == 1:
-            geometry = self.selected_geometry[0]
-
+        """Update the number of control points in the selected geometries."""
+        for geometry in self.selected_geometry:
             # Lower the order for B-spline geometries if it is too high.
             if isinstance(geometry, BSpline):
                 max_order = geometry.max_order(value)
@@ -540,47 +575,43 @@ class MainWindow(QMainWindow):
             
             cp = geometry.resize_cp(self.field_cp_u.value(), self.field_cp_v.value())
             geometry.update(cp)
-            self.ren.Render()
-            self.iren.Render()
-            self.update_label_selected()
+        self.ren.Render()
+        self.iren.Render()
+        self.update_label_selected()
     
     def update_number_nodes(self) -> None:
-        """Update the number of nodes in the current geometry."""
-        if len(self.selected_geometry) == 1:
-            geometry = self.selected_geometry[0]
+        """Update the number of nodes in the selected geometries."""
+        for geometry in self.selected_geometry:
             geometry.update(
                 number_u=self.field_nodes_u.value(),
                 number_v=self.field_nodes_v.value(),
             )
-            self.ren.Render()
-            self.iren.Render()
+        self.ren.Render()
+        self.iren.Render()
 
     def update_order(self, value) -> None:
-        """Update the order of the current geometry."""
-        if len(self.selected_geometry) == 1:
-            geometry = self.selected_geometry[0]
-
-            # Lower the order entered by the user if it is too high.
+        """Update the order of the selected geometries."""
+        for geometry in self.selected_geometry:
             if isinstance(geometry, BSpline):
                 max_order = geometry.max_order()
+                # Lower the order entered by the user if it is too high.
                 if value > geometry.max_order():
                     self.field_order.blockSignals(True)
                     self.field_order.setValue(max_order)
                     self.field_order.blockSignals(False)
                     return
-            
-            geometry.update(order=self.field_order.value())
-            self.ren.Render()
-            self.iren.Render()
-            self.update_label_selected()
+                geometry.update(order=self.field_order.value())
+        self.ren.Render()
+        self.iren.Render()
+        self.update_label_selected()
     
-    def remove_current(self) -> None:
-        """Remove the currently selected geometries."""
+    def remove_selected_geometries(self) -> None:
+        """Remove all currently selected geometries."""
         for geometry in self.selected_geometry:
             self.iren.GetInteractorStyle().remove_from_pick_list(geometry)
             
-            # row_index = self.geometry_list.stringList().index(str(geometry))
-            # self.geometry_list.removeRow(row_index)
+            row_index = self.geometry_list.stringList().index(str(geometry))
+            self.geometry_list.removeRow(row_index)
             
             for actor in geometry.get_actors():
                 self.ren.RemoveActor(actor)
@@ -588,21 +619,23 @@ class MainWindow(QMainWindow):
 
         self.selected_geometry.clear()
         self.selected_point = None
-        self.load_fields_with_geometry(None)
+        self.load_fields_with_selected_geometries()
         self.update_label_selected()
         self.ren.Render()
         self.iren.Render()
 
     def get_geometry_of_actor(self, actor: vtk.vtkActor) -> Geometry:
-        """Return the Geometry object that contains the given actor."""
+        """Return the Geometry object that contains the given actor, or return None if none exists."""
         for geometry in self.geometries:
             if actor in geometry.get_actors():
                 return geometry
     
-    def set_selected_geometry(self, actor: vtk.vtkActor, point_id: int = None, append: bool = False) -> None:
-        """Set or append the Geometry corresponding to the given actor to the current selection, and set the point ID as the current selection."""
+    def set_selected_point(self, point_id: int = None) -> None:
+        """Set the point ID as the current selection."""
         self.selected_point = point_id
-        geometry = self.get_geometry_of_actor(actor) if actor else None
+    
+    def set_selected_geometry(self, geometry: Geometry = None, append: bool = False) -> None:
+        """Set or append the given Geometry to the current selection."""
         if append:
             if geometry is not None and geometry not in self.selected_geometry:
                 self.selected_geometry.append(geometry)
@@ -612,43 +645,40 @@ class MainWindow(QMainWindow):
             else:
                 self.selected_geometry = [geometry]
         
-        self.load_fields_with_geometry(geometry)
-    
-    def load_fields_with_geometry(self, geometry: Geometry = None) -> None:
-        """Populate the fields in the GUI with the information of the selected geometry, or disable them and reset their values if None."""
+    def load_fields_with_selected_geometries(self) -> None:
+        """Populate the fields in the GUI with the information of the selected geometries, or disable them if no geometries are selected."""
         self.update_label_selected()
 
-        if geometry is None:
-            for fields in [self.fields_cp, self.fields_number_cp, self.fields_number_nodes, self.fields_order]:
-                fields.setEnabled(False)
-            self.button_delete.setEnabled(False)
-            # self.geometry_list_widget.clearSelection()
-        else:
-            is_surface = isinstance(geometry, Surface)
+        if self.selected_geometry:
             is_multiple_selected = len(self.selected_geometry) >= 2
-
-            # Load the control point fields, if a control point is currently selected.
-            if self.selected_point is not None:
-                point = geometry.get_point(self.selected_point)
-                self.fields_cp.setEnabled(True)
-                self.field_x.blockSignals(True)
-                self.field_y.blockSignals(True)
-                self.field_z.blockSignals(True)
-                self.field_x.setValue(point[0])
-                self.field_y.setValue(point[1])
-                self.field_z.setValue(point[2])
-                self.field_x.blockSignals(False)
-                self.field_y.blockSignals(False)
-                self.field_z.blockSignals(False)
+            geometry = self.selected_geometry[-1] if is_multiple_selected else self.selected_geometry[0]
             
-            # Load the remaining fields.
-            self.fields_number_cp.setEnabled(not isinstance(geometry, Hermite))
+            is_surface = isinstance(geometry, Surface)
+            is_all_order_modifiable = all(isinstance(_, BSpline) for _ in self.selected_geometry)
+            is_all_cp_modifiable = not any(isinstance(_, Hermite) for _ in self.selected_geometry)
+
+            # Load the control point fields only if a control point is currently selected and only one geometry is selected.
+            if self.selected_point is not None:
+                self.fields_cp.setEnabled(not is_multiple_selected)
+                if not is_multiple_selected:
+                    point = geometry.get_point(self.selected_point)
+                    self.fields_cp.setEnabled(True)
+                    self.field_x.blockSignals(True)
+                    self.field_y.blockSignals(True)
+                    self.field_z.blockSignals(True)
+                    self.field_x.setValue(point[0])
+                    self.field_y.setValue(point[1])
+                    self.field_z.setValue(point[2])
+                    self.field_x.blockSignals(False)
+                    self.field_y.blockSignals(False)
+                    self.field_z.blockSignals(False)
+            
+            self.fields_number_cp.setEnabled(is_all_cp_modifiable)
             self.fields_number_nodes.setEnabled(True)
             self.field_cp_v.setEnabled(is_surface)
             self.field_nodes_v.setEnabled(is_surface)
             self.fields_order.setEnabled(True)
-            self.field_order.setVisible(isinstance(geometry, BSpline))
-            self.label_order.setVisible(not isinstance(geometry, BSpline))
+            self.field_order.setVisible(is_all_order_modifiable)
             self.button_delete.setEnabled(True)
 
             self.field_cp_u.blockSignals(True)
@@ -667,11 +697,21 @@ class MainWindow(QMainWindow):
             self.field_nodes_u.blockSignals(False)
             self.field_nodes_v.blockSignals(False)
 
+            if is_multiple_selected:
+                self.label_order.clear()
+            else:
+                self.label_order.setText(Geometry.get_order_name(geometry.get_order()))
+
             if isinstance(geometry, BSpline):
                 self.field_order.blockSignals(True)
                 self.field_order.setValue(geometry.get_order())
                 self.field_order.blockSignals(False)
-    
+        else:
+            for fields in (self.fields_cp, self.fields_number_cp, self.fields_number_nodes, self.fields_order):
+                fields.setEnabled(False)
+            self.button_delete.setEnabled(False)
+            self.geometry_list_widget.clearSelection()
+
     def calculate_continuity(self, *geometries) -> Continuity:
         """Return the continuity of the given geometries, returning None if continuity cannot be calculated."""
         if len(geometries) >= 2:

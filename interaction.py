@@ -2,7 +2,7 @@
 Mouse-click interactions with geometry.
 """
 
-import sys
+from typing import List, Tuple
 
 import vtk
 
@@ -84,14 +84,26 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
             
             # A control point was selected.
             if point_id >= 0:
-                self.gui.set_selected_geometry(actor_cp, point_id, append=is_multiselection)
+                geometry = self.gui.get_geometry_of_actor(actor_cp)
+                self.gui.set_selected_point(point_id)
+                self.gui.set_selected_geometry(
+                    geometry,
+                    append=is_multiselection,
+                )
+                self.gui.select_in_geometry_list(geometry)
                 self.dragged_point_id = point_id
                 self.set_selection_point_id(point_id)
                 self.set_selection_cp(actor_cp)
                 self.highlight_point(actor_cp, point_id)
             # A nodes actor was selected.
             elif actor_nodes is not None:
-                self.gui.set_selected_geometry(actor_nodes, append=is_multiselection)
+                geometry = self.gui.get_geometry_of_actor(actor_nodes)
+                self.gui.set_selected_point(None)
+                self.gui.set_selected_geometry(
+                    geometry,
+                    append=is_multiselection,
+                )
+                self.gui.select_in_geometry_list(geometry)
                 self.set_selection_nodes(actor_nodes, append=is_multiselection)
                 self.highlight_actor(actor_nodes)
 
@@ -127,9 +139,13 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         else:
             # If dragging a control point, update its position.
             if self.dragged_point_id is not None:
-                position = self.nodes_picker.GetPickPosition()
+                position = self.get_mouse_position_world()
                 self.gui.drag_cp(position, self.dragged_point_id)
-                self.gui.set_selected_geometry(self.selected_cp_actor, self.dragged_point_id)
+                self.gui.set_selected_point(self.dragged_point_id)
+                self.gui.set_selected_geometry(
+                    self.gui.get_geometry_of_actor(self.selected_cp_actor)
+                )
+                self.gui.load_fields_with_selected_geometries()
             # If dragging a nodes, update the position of the entire geometry.
             else:
                 if self.previous_position:
@@ -138,18 +154,23 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
                     self.gui.drag_nodes(translation)
                     self.previous_position = current_position
     
-    def get_mouse_position_world(self):
+    def get_mouse_position(self) -> Tuple[float, float]:
+        """Return the position of the last mouse event in pixels."""
+        position = self.GetInteractor().GetEventPosition()
+        return tuple(round(_ * self.gui.settings_field_mouse_modifier.value()) for _ in position)
+    
+    def get_mouse_position_world(self) -> Tuple[float, float, float]:
         """Return the position of the last mouse event in world coordinates."""
-        click_position = self.GetInteractor().GetEventPosition()
+        position = self.get_mouse_position()
         coordinate = vtk.vtkCoordinate()
-        coordinate.SetValue(click_position[0], click_position[1], 0)
         coordinate.SetCoordinateSystemToDisplay()
+        coordinate.SetValue(position[0], position[1], self.gui.settings_field_mouse_z_depth.value())
         return coordinate.GetComputedWorldValue(self.GetDefaultRenderer())
     
     def pick(self) -> None:
         """Perform picking where a mouse event last occurred."""
         # Get the mouse location in display coordinates.
-        position = [_*self.gui.settings_field_mouse_modifier.value() for _ in self.GetInteractor().GetEventPosition()]
+        position = self.get_mouse_position()
         # Perform picking.
         self.point_picker.Pick(
             position[0], position[1], 0, self.GetDefaultRenderer()
@@ -171,7 +192,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         # Store the current actor, even if it is None.
         self.previous_nodes_actor = actor
     
-    def highlight_point(self, actor: vtk.vtkProp, point: int) -> None:
+    def highlight_point(self, actor: vtk.vtkProp, point_id: int) -> None:
         """Highlight only the specific point on the given control points actor."""
         # Restore the original color of the previous point.
         if self.previous_cp_actor is not None and self.previous_point_id is not None and self.previous_point_id is not self.selected_point_id:
@@ -183,13 +204,13 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
             data = actor.GetMapper().GetInput()
             colors = data.GetCellData().GetScalars()
             if colors:
-                colors.SetTuple(point, Geometry.color_highlight_cp)
+                colors.SetTuple(point_id, Geometry.color_highlight_cp)
                 data.GetCellData().SetScalars(colors)
                 data.Modified()
 
         # Save the current point and corresponding actor. If no point was selected (-1), save None.
         self.previous_cp_actor = actor
-        self.previous_point_id = point if point >= 0 else None
+        self.previous_point_id = point_id if point_id >= 0 else None
     
     def unhighlight_selection_point(self) -> None:
         """Remove highlighting from currently selected control point."""
@@ -226,4 +247,6 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.selected_point_id = None
         self.selected_cp_actor = None
         self.selected_nodes_actor.clear()
+        self.gui.set_selected_point(None)
         self.gui.set_selected_geometry(None)
+        self.gui.load_fields_with_selected_geometries()

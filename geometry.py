@@ -80,6 +80,7 @@ class Geometry(ABC):
     # Default color of control point actors.
     color_default_cp = [_*255 for _ in BLUE]
     color_highlight_cp = [_*255 for _ in BLUE_LIGHT]
+    color_lines_cp = [_*255 for _ in YELLOW]
     # Property object that defines the appearance of nodes actors.
     property_default_nodes = vtk.vtkProperty()
     property_default_nodes.SetColor(GRAY_80)
@@ -99,7 +100,7 @@ class Geometry(ABC):
     property_highlight_nodes.SetLighting(False)
 
     def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None, order: int = None):
-        self.cp = cp
+        self.cp = cp.astype(float)
         self.number_u = number_u
         self.number_v = number_v
         self.order = order
@@ -141,7 +142,7 @@ class Geometry(ABC):
         self.actor_cp.GetProperty().SetEdgeVisibility(True)
         self.actor_cp.GetProperty().SetVertexVisibility(True)
         self.actor_cp.GetProperty().SetPointSize(15)
-        self.actor_cp.GetProperty().SetLineWidth(5)
+        self.actor_cp.GetProperty().SetLineWidth(2)
 
         self.actor_nodes = vtk.vtkActor()
         self.actor_nodes.SetMapper(mapper_nodes)
@@ -264,6 +265,19 @@ class Geometry(ABC):
                 self.vertices_cp.InsertCellPoint(self.ids_cp[-1])
         self.data_cp.SetPoints(self.points_cp)
         self.data_cp.SetVerts(self.vertices_cp)
+
+        # Add lines to Hermite geometries.
+        if isinstance(self, Hermite):
+            lines = vtk.vtkCellArray()
+            if isinstance(self, HermiteCurve):
+                lines.InsertNextCell(2, [0, 2])
+                lines.InsertNextCell(2, [1, 3])
+            elif isinstance(self, HermiteSurface):
+                for i in (0, 1, 4, 5):
+                    lines.InsertNextCell(2, [i, i+2])  # Tangent vector
+                    lines.InsertNextCell(2, [i, i+8])  # Tangent vector
+                    lines.InsertNextCell(2, [i, i+10])  # Twist vector
+            self.data_cp.SetLines(lines)
         
         # Add nodes.
         for i in range(self.nodes.shape[1]):
@@ -274,11 +288,17 @@ class Geometry(ABC):
         self.data_nodes.SetDimensions(self.nodes.shape[2], self.nodes.shape[1], 1)
         self.data_nodes.SetPoints(self.points_nodes)
 
-        # Add an array of colors to control point data. Allows one control point to have a different color from the rest when it is selected.
+        # Add an array of colors to control point data. Specifying colors for individual control points allows one control point to have a different color from the rest when it is selected.
         colors = vtk.vtkUnsignedCharArray()
         colors.SetNumberOfComponents(3)
+        colors.SetNumberOfTuples(len(self.ids_cp))
         for tuple_id in self.ids_cp:
-            colors.InsertTuple(tuple_id, Geometry.color_default_cp)
+            colors.SetTuple(tuple_id, Geometry.color_default_cp)
+        if isinstance(self, Hermite):
+            # Add colors to lines in Hermite geometries.
+            for i in range(lines.GetNumberOfCells()):
+                tuple_id = i + len(self.ids_cp)
+                colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
         self.data_cp.GetCellData().SetScalars(colors)
         self.data_cp.Modified()
 
@@ -322,9 +342,8 @@ class Geometry(ABC):
     def get_point_indices(self, point_id: int) -> Tuple[int, int]:
         """Return a tuple of indices to the control points array corresponding to the specified point ID. Each point's point ID is assumed to start from 0 and be numbered based on the order it was added."""
         assert point_id >= 0
-        assert 1 not in self.cp.shape[0:2], "The control points array for a curve must have size 3-n-1."
         # This geometry is a curve.
-        if 1 in self.cp.shape[1:3]:
+        if isinstance(self, Curve):
             return point_id, 0
         # This geometry is a surface.
         else:
@@ -386,10 +405,10 @@ class BezierSurface(Bezier, Surface):
     def get_order(self) -> Tuple[int, int]:
         return (self.cp.shape[1] - 1, self.cp.shape[2] - 1)
     
-    # @staticmethod
-    # def continuity(cp_1, cp_2) -> str:
-    #     continuity = bezier.BezierSurfaceContinuity(cp_1, cp_2)
-    #     return Continuity(*continuity) if continuity is not None else Continuity()
+    @staticmethod
+    def continuity(cp_1, cp_2) -> str:
+        continuity = bezier.BezierSurfaceContinuity(cp_1, cp_2)
+        return Continuity(*continuity) if continuity is not None else Continuity()
 
 class Hermite(Geometry):
     geometry_name = Geometry.HERMITE
