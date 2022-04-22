@@ -90,6 +90,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
                     geometry,
                     append=is_multiselection,
                 )
+                self.gui.select_in_geometry_list(geometry)
                 self.dragged_point_id = point_id
                 self.set_selection_point_id(point_id)
                 self.set_selection_cp(actor_cp)
@@ -247,3 +248,4 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         self.selected_nodes_actor.clear()
         self.gui.set_selected_point(None)
         self.gui.set_selected_geometry(None)
+        self.gui.load_fields_with_selected_geometries()
