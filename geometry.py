@@ -342,9 +342,8 @@ class Geometry(ABC):
     def get_point_indices(self, point_id: int) -> Tuple[int, int]:
         """Return a tuple of indices to the control points array corresponding to the specified point ID. Each point's point ID is assumed to start from 0 and be numbered based on the order it was added."""
         assert point_id >= 0
-        assert 1 not in self.cp.shape[0:2], "The control points array for a curve must have size 3-n-1."
         # This geometry is a curve.
-        if 1 in self.cp.shape[1:3]:
+        if isinstance(self, Curve):
             return point_id, 0
         # This geometry is a surface.
         else:

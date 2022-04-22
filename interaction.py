@@ -145,6 +145,7 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
                 self.gui.set_selected_geometry(
                     self.gui.get_geometry_of_actor(self.selected_cp_actor)
                 )
+                self.gui.load_fields_with_selected_geometries()
             # If dragging a nodes, update the position of the entire geometry.
             else:
                 if self.previous_position:

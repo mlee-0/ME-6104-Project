@@ -651,7 +651,7 @@ class MainWindow(QMainWindow):
     def load_fields_with_selected_geometries(self) -> None:
         """Populate the fields in the GUI with the information of the selected geometries, or disable them if no geometries are selected."""
         self.update_label_selected()
-        
+
         if self.selected_geometry:
             is_multiple_selected = len(self.selected_geometry) >= 2
             geometry = self.selected_geometry[-1] if is_multiple_selected else self.selected_geometry[0]
