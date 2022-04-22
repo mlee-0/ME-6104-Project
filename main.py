@@ -230,8 +230,8 @@ class MainWindow(QMainWindow):
         self.field_order.setRange(1, 10)
         self.field_order.setAlignment(Qt.AlignRight)
         self.field_order.valueChanged.connect(self.update_order)
+        self.field_order.setVisible(False)
         self.label_order = QLabel()
-        self.label_order.setVisible(False)
         layout.addWidget(QLabel("Order:"))
         layout.addStretch(1)
         layout.addWidget(self.label_order)
@@ -374,11 +374,9 @@ class MainWindow(QMainWindow):
 
     def update_label_selected(self) -> None:
         """Display information about the currently selected geometries in the label."""
-        # Show the name and order of the geometry.
         if len(self.selected_geometry) == 1:
             geometry = self.selected_geometry[0]
-            self.label_selected.setText(str(geometry))
-            self.label_order.setText(Geometry.get_order_name(geometry.get_order()))
+            self.label_selected.clear()
         # Show the continuity of the geometries.
         elif len(self.selected_geometry) > 1:
             continuity = self.calculate_continuity(*self.selected_geometry)
@@ -392,7 +390,6 @@ class MainWindow(QMainWindow):
                 self.label_selected.setText(f"{len(self.selected_geometry)} {geometry_type} selected")
         else:
             self.label_selected.clear()
-            self.label_order.clear()
     
     def highlight_selected_geometry(self, new, old) -> None:
         """Highlight the selected geometries in the visualizer, and load the fields with their information."""
@@ -682,7 +679,6 @@ class MainWindow(QMainWindow):
             self.field_nodes_v.setEnabled(is_surface)
             self.fields_order.setEnabled(True)
             self.field_order.setVisible(is_all_order_modifiable)
-            self.label_order.setVisible(True)
             self.button_delete.setEnabled(True)
 
             self.field_cp_u.blockSignals(True)
@@ -700,6 +696,11 @@ class MainWindow(QMainWindow):
                 self.field_nodes_v.setValue(geometry.number_v)
             self.field_nodes_u.blockSignals(False)
             self.field_nodes_v.blockSignals(False)
+
+            if is_multiple_selected:
+                self.label_order.clear()
+            else:
+                self.label_order.setText(Geometry.get_order_name(geometry.get_order()))
 
             if isinstance(geometry, BSpline):
                 self.field_order.blockSignals(True)
