@@ -118,7 +118,6 @@ class MainWindow(QMainWindow):
         self.geometry_list_widget = QListView()
         self.geometry_list_widget.setModel(self.geometry_list)
         self.geometry_list_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.geometry_list_widget.setDragDropMode(QAbstractItemView.InternalMove)
         self.geometry_list_widget.selectionModel().selectionChanged.connect(self.highlight_selected_geometry)
         main_layout.addWidget(self.geometry_list_widget)
 
