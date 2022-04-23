@@ -19,7 +19,7 @@ from interaction import InteractorStyle
 
 
 PROGRAM_NAME = "Curve and Surface Visualizer"
-PROGRAM_VERSION = (0, 0, 0)
+PROGRAM_VERSION = (1, 0, 0)
 AUTHORS = ["Sujay Kestur", "Marshall Lee"]
 
 # The temporary folder created when running an executable created by PyInstaller, or the current folder when running this script directly.
@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
 
         # List containing all curves and surfaces.
         self.geometries = []
-        # The currently selected Geometry objects and point IDs.
+        # The currently selected Geometry objects and point ID.
         self.selected_geometry = []
         self.selected_point = None
 
@@ -58,12 +58,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(widget)
 
         # Add widgets to the layout.
-        self.sidebar = self._make_sidebar()
-        visualizer = self._make_visualizer()
-        widget_camera_controls = self._make_widget_camera_controls()
-        layout.addWidget(self.sidebar, 0, 0, 2, 1)
-        layout.addWidget(visualizer, 0, 1)
-        layout.addWidget(widget_camera_controls, 1, 1)
+        layout.addWidget(self._make_sidebar(), 0, 0, 2, 1)
+        layout.addWidget(self._make_visualizer(), 0, 1)
+        layout.addWidget(self._make_widget_camera_controls(), 1, 1)
 
         # Create dialog windows.
         self.window_settings = self._make_settings_window()
@@ -378,8 +375,7 @@ class MainWindow(QMainWindow):
         window.setLayout(main_layout)
 
         logo = QLabel()
-        image = QPixmap(os.path.join(FOLDER_ROOT, "Images/logo.png")).scaledToHeight(100)
-        logo.setPixmap(image)
+        logo.setPixmap(QPixmap(os.path.join(FOLDER_ROOT, "Images/logo.png")).scaledToHeight(100))
         main_layout.addWidget(logo, alignment=Qt.AlignCenter)
         main_layout.addWidget(QLabel(PROGRAM_NAME), alignment=Qt.AlignCenter)
         main_layout.addWidget(QLabel(f"Version: {'.'.join([str(_) for _ in PROGRAM_VERSION])}"), alignment=Qt.AlignCenter)
@@ -863,7 +859,7 @@ class MainWindow(QMainWindow):
         self.add_geometry(geometry)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     application = QApplication(sys.argv)
     window = MainWindow()
     window.setWindowTitle(PROGRAM_NAME)

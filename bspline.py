@@ -5,52 +5,56 @@ Functions that calculate B-spline curves and surfaces.
 import numpy as np
 
 
-def basis(u: np.ndarray, i: int, k: int, knots: np.ndarray) -> np.ndarray:
-    """Return the basis function as a 1D array for interpolation points u."""
+def basis(u: np.ndarray, i: np.ndarray, k: int, knots: np.ndarray) -> np.ndarray:
+    """
+    Return the basis function as a 2D array with shape (u, n+1).
+
+    `u`: 2D array of interpolation points with shape (number_u, 1).
+    `i`: 1D array of segment indices with shape (n+1,).
+    `k`: Integer defining the order.
+    `knots`: 1D array of knot values.
+    """
+
     if k > 1:
         # Calculate the first term.
+        numerator_1 = (u - knots[i]) * basis(u, i, k-1, knots)
         denominator_1 = knots[i+k-1] - knots[i]
-        if denominator_1 == 0.0:
-            # Set to 0 if dividing by zero.
-            term_1 = 0
-        else:
-            numerator_1 = (u - knots[i]) * basis(u, i, k-1, knots)
-            term_1 = numerator_1 / denominator_1
+        term_1 = np.empty((u.size, i.size))
+        where_division_by_zero = denominator_1 == 0.0
+        term_1[:, where_division_by_zero] = 0.0
+        term_1[:, ~where_division_by_zero] = numerator_1[:, ~where_division_by_zero] / denominator_1[~where_division_by_zero]
         
         # Calculate the second term.
+        numerator_2 = (knots[i+k] - u) * basis(u, i+1, k-1, knots)
         denominator_2 = knots[i+k] - knots[i+1]
-        if denominator_2 == 0.0:
-            # Set to 0 if dividing by zero.
-            term_2 = 0
-        else:
-            numerator_2 = (knots[i+k] - u) * basis(u, i+1, k-1, knots)
-            term_2 = numerator_2 / denominator_2
+        term_2 = np.empty((u.size, i.size))
+        where_division_by_zero = denominator_2 == 0.0
+        term_2[:, where_division_by_zero] = 0.0
+        term_2[:, ~where_division_by_zero] = numerator_2[:, ~where_division_by_zero] / denominator_2[~where_division_by_zero]
         return term_1 + term_2
     else:
-        # If this is the last segment, include the last knot to allow the shape to reach the last control point.
-        if knots[i] == knots[-1]-1:
-            return (u >= knots[i]) & (u <= knots[i+1])
-        # The mathematically correct equation.
-        else:
-            return (u >= knots[i]) & (u < knots[i+1])
+        output = np.empty((u.size, i.size))
+        output[:, :-1] = (u >= knots[i[:-1]]) & (u < knots[i[:-1]+1])
+        # For the last segment, include the last knot to allow the shape to reach the last control point.
+        output[:, -1:] = (u >= knots[i[-1]]) & (u <= knots[i[-1]+1])
+        return output
 
 # n = 5
-# k = 3
+# k = 4
 # T = n + k + 1
 # padding = k - 1
 # knots = np.arange(T - padding*2)
 # assert knots.size > 0, f"The order {k} is too high for the number of control points {n+1}."
 # knots = np.pad(knots, padding, mode="edge")
 # u = np.linspace(0, knots[-1], 75)
+# i = np.arange(n+1)
+# b = basis(u, i, k, knots)
 
 # from matplotlib import pyplot as plt
 # plt.figure()
 # for i in range(n+1):
 #     plt.subplot(n+1, 1, i+1)
-#     plt.plot(u, basis(u, i, k, knots), '.')
-#     # print(
-#     #     np.round(basis(u, i, k, knots), 2)
-#     # )
+#     plt.plot(u, b[:, i], '.')
 #     plt.xticks(range(n+1))
 # plt.show()
 
@@ -66,11 +70,13 @@ def curve(cp: np.ndarray, number_u: int, k: int) -> np.ndarray:
     assert knots.size > 0, f"The order {k} is too high for the number of control points {n+1}."
     knots = np.pad(knots, padding, mode="edge")
     # Interpolation points.
-    u = np.linspace(0, knots[-1], number_u)
+    u = np.linspace(0, knots[-1], number_u).reshape((number_u, 1))
+    # Segment indices.
+    i = np.arange(n+1)
     # Calculate nodes.
-    nodes = np.zeros((3, number_u, 1))
-    for i in range(n+1):
-        nodes[:, :, 0] += basis(u, i, k, knots) * cp[:, i, :]
+    nodes = np.empty((3, number_u, 1))
+    for xyz in range(3):
+        nodes[xyz, :, :] = basis(u, i, k, knots) @ cp[xyz, :, :]
     return nodes
 
 def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
@@ -89,17 +95,15 @@ def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
     knots_u = np.pad(knots_u, padding, mode="edge")
     knots_v = np.pad(knots_v, padding, mode="edge")
     # Interpolation points.
-    u = np.linspace(0, knots_u[-1], number_u)
-    v = np.linspace(0, knots_v[-1], number_v)
+    u = np.linspace(0, knots_u[-1], number_u).reshape((number_u, 1))
+    v = np.linspace(0, knots_v[-1], number_v).reshape((number_v, 1))
+    # Segment indices.
+    i = np.arange(m+1)
+    j = np.arange(n+1)
     # Calculate nodes.
-    nodes = np.zeros((3, number_u, number_v))
-    for i in range(m+1):
-        for j in range(n+1):
-            N_u = basis(u, i, k, knots_u)
-            N_v = basis(v, j, k, knots_v)
-            N_u = np.expand_dims(N_u, axis=(0, 2))
-            N_v = np.expand_dims(N_v, axis=(0, 1))
-            nodes[:, :, :] += N_u * N_v * np.expand_dims(cp[:, i, j], axis=(1, 2))
+    nodes = np.empty((3, number_u, number_v))
+    for xyz in range(3):
+        nodes[xyz, :, :] = basis(u, i, k, knots_u) @ cp[xyz, :, :] @ basis(v, j, k, knots_v).transpose()
     return nodes
 
 # from matplotlib import pyplot as plt
