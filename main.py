@@ -264,16 +264,19 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         layout = QHBoxLayout(widget)
 
-        button = QPushButton("Top View")
+        layout.addWidget(QLabel("Camera:"))
+
+        button = QPushButton("Top")
         button.clicked.connect(self.set_camera_top)
         layout.addWidget(button)
 
-        button = QPushButton("Front View")
+        button = QPushButton("Front")
         button.clicked.connect(self.set_camera_front)
         layout.addWidget(button)
 
         button = QPushButton("Fit")
-        button.clicked.connect(self.reset_camera)
+        button.setToolTip("Make all geometries visible, or only the currently selected geometries.")
+        button.clicked.connect(self.set_camera_fit)
         layout.addWidget(button)
 
         layout.addStretch(1)
@@ -453,6 +456,18 @@ class MainWindow(QMainWindow):
         x, y, z = camera.GetPosition()
         camera.SetFocalPoint(x, y+1, z)
         self.reset_camera()
+    
+    def set_camera_fit(self) -> None:
+        """Adjust the camera so that the selected geometries, or all geometries if none are selected, are visible."""
+        if self.selected_geometry:
+            data_combined = vtk.vtkAppendPoints()
+            for geometry in self.selected_geometry:
+                data_combined.AddInputData(geometry.actor_cp.GetMapper().GetInput())
+            data_combined.Update()
+            self.ren.ResetCamera(data_combined.GetOutput().GetBounds())
+        else:
+            self.ren.ResetCamera()
+        self.iren.Render()
     
     def reset_camera(self) -> None:
         self.ren.ResetCamera()
