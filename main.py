@@ -401,7 +401,6 @@ class MainWindow(QMainWindow):
     def update_label_selected(self) -> None:
         """Display information about the currently selected geometries in the label."""
         if len(self.selected_geometry) == 1:
-            geometry = self.selected_geometry[0]
             self.label_selected.clear()
         # Show the continuity of the geometries.
         elif len(self.selected_geometry) > 1:
@@ -425,14 +424,19 @@ class MainWindow(QMainWindow):
         names = [str(_) for _ in self.geometries]
         indices = self.geometry_list_widget.selectionModel().selectedIndexes()
         is_multiselection = len(indices) > 1
-        for index in indices:
-            name = self.geometry_list.data(index, Qt.DisplayRole)
-            geometry = self.geometries[names.index(name)]
-            self.set_selected_geometry(geometry, append=is_multiselection)
-            self.iren.GetInteractorStyle().set_selection_nodes(geometry.actor_nodes, append=is_multiselection)
-            self.iren.GetInteractorStyle().highlight_actor(geometry.actor_nodes)
+        if len(indices):
+            for index in indices:
+                name = self.geometry_list.data(index, Qt.DisplayRole)
+                geometry = self.geometries[names.index(name)]
+                self.set_selected_geometry(geometry, append=is_multiselection)
+                self.iren.GetInteractorStyle().set_selection_nodes(geometry.actor_nodes, append=is_multiselection)
+                self.iren.GetInteractorStyle().highlight_actor(geometry.actor_nodes)
+        else:
+            self.set_selected_geometry(None)
         
         self.load_fields_with_selected_geometries()
+        self.update_label_selected()
+        self.update_label_order()
         
         self.ren.Render()
         self.iren.Render()
@@ -615,7 +619,7 @@ class MainWindow(QMainWindow):
             geometry.update(cp)
         self.ren.Render()
         self.iren.Render()
-        self.update_label_selected()
+        self.update_label_order()
     
     def update_number_nodes(self) -> None:
         """Update the number of nodes in the selected geometries."""
@@ -641,7 +645,15 @@ class MainWindow(QMainWindow):
                 geometry.update(order=self.field_order.value())
         self.ren.Render()
         self.iren.Render()
-        self.update_label_selected()
+        self.update_label_order()
+    
+    def update_label_order(self) -> None:
+        """Update the label to show the order of the selected geometry."""
+        if len(self.selected_geometry) == 1:
+            geometry = self.selected_geometry[0]
+            self.label_order.setText(Geometry.get_order_name(geometry.get_order()))
+        else:
+            self.label_order.clear()
     
     def remove_selected_geometries(self) -> None:
         """Remove all currently selected geometries."""
@@ -658,7 +670,7 @@ class MainWindow(QMainWindow):
         self.selected_geometry.clear()
         self.selected_point = None
         self.load_fields_with_selected_geometries()
-        self.update_label_selected()
+        self.update_label_order()
         self.ren.Render()
         self.iren.Render()
 
@@ -686,6 +698,7 @@ class MainWindow(QMainWindow):
     def load_fields_with_selected_geometries(self) -> None:
         """Populate the fields in the GUI with the information of the selected geometries, or disable them if no geometries are selected."""
         self.update_label_selected()
+        self.update_label_order()
 
         if self.selected_geometry:
             is_multiple_selected = len(self.selected_geometry) >= 2
@@ -735,11 +748,6 @@ class MainWindow(QMainWindow):
                 self.field_nodes_v.setValue(geometry.number_v)
             self.field_nodes_u.blockSignals(False)
             self.field_nodes_v.blockSignals(False)
-
-            if is_multiple_selected:
-                self.label_order.clear()
-            else:
-                self.label_order.setText(Geometry.get_order_name(geometry.get_order()))
 
             if isinstance(geometry, BSpline):
                 self.field_order.blockSignals(True)
@@ -851,7 +859,7 @@ class MainWindow(QMainWindow):
             [[2, 5, 4, 3], [2, 6, 5, 5], [2, 6, 5, 4], [2, 3, 4, 3]],
         ])
         geometry = BezierSurface(cp, 25, 25)
-        self.add_geometry()
+        self.add_geometry(geometry)
 
 
 if __name__ == '__main__':
