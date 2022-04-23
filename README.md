@@ -18,7 +18,9 @@ A GUI program for viewing and modifying curves and surfaces in 3D, written in Py
 This program can be run either by downloading the executable file or by downloading and running the source code.
 
 ### Executable file
-Download the executable file [here]().
+Download the appropriate executable file [here]().
+
+To create the executable file, download all source code, and download PyInstaller using: `pip install pyinstaller`. Then create the executable file using the `.spec` file for the desired operating system: `pyinstaller <filename>.spec`.
 
 ### Running from source
-Download the source code and run `main.py`. Make sure all dependencies are installed.
+Download the source code and install all dependencies using: `pip install -r requirements.txt`. Run `main.py` to start the program.
