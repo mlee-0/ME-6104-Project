@@ -8,7 +8,7 @@ from typing import List
 import numpy as np
 from PyQt5.QtCore import Qt, QStringListModel, QItemSelectionModel
 from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QLabel, QSpinBox, QDoubleSpinBox, QTabWidget, QListView, QListView, QAbstractItemView
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QCheckBox, QLabel, QSpinBox, QDoubleSpinBox, QGroupBox, QTabWidget, QListView, QListView, QAbstractItemView
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
@@ -138,6 +138,7 @@ class MainWindow(QMainWindow):
         self.field_x.setSingleStep(1)
         self.field_x.setDecimals(1)
         self.field_x.setAlignment(Qt.AlignRight)
+        self.field_x.setToolTip("X coordinate of the currently selected control point.")
         self.field_x.valueChanged.connect(self.update_cp)
         layout = QHBoxLayout()
         layout.addWidget(QLabel("X"))
@@ -149,6 +150,7 @@ class MainWindow(QMainWindow):
         self.field_y.setSingleStep(1)
         self.field_y.setDecimals(1)
         self.field_y.setAlignment(Qt.AlignRight)
+        self.field_y.setToolTip("Y coordinate of the currently selected control point.")
         self.field_y.valueChanged.connect(self.update_cp)
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Y"))
@@ -160,6 +162,7 @@ class MainWindow(QMainWindow):
         self.field_z.setSingleStep(1)
         self.field_z.setDecimals(1)
         self.field_z.setAlignment(Qt.AlignRight)
+        self.field_z.setToolTip("Z coordinate of the currently selected control point.")
         self.field_z.valueChanged.connect(self.update_cp)
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Z"))
@@ -171,6 +174,7 @@ class MainWindow(QMainWindow):
     def _make_fields_number_cp(self) -> QWidget:
         """Return a widget containing fields for modifying the number of control points."""
         widget = QWidget()
+        widget.setToolTip("Number of control points in the currently selected geometry. Adjust this while multiple geometries are selected to modify all selected geometries simultaneously.")
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -196,6 +200,7 @@ class MainWindow(QMainWindow):
     def _make_fields_number_nodes(self) -> QWidget:
         """Return a widget containing fields for modifying the number of nodes."""
         widget = QWidget()
+        widget.setToolTip("Number of nodes in the currently selected geometry. Adjust this while multiple geometries are selected to modify all selected geometries simultaneously.")
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -228,6 +233,7 @@ class MainWindow(QMainWindow):
         self.field_order = QSpinBox()
         self.field_order.setRange(1, 10)
         self.field_order.setAlignment(Qt.AlignRight)
+        self.field_order.setToolTip("Order of the currently selected geometry. Adjust this while multiple geometries are selected to modify all selected geometries simultaneously.")
         self.field_order.valueChanged.connect(self.update_order)
         self.field_order.setVisible(False)
         self.label_order = QLabel()
@@ -279,32 +285,39 @@ class MainWindow(QMainWindow):
         window = QDialog(self)
         window.setModal(True)
         window.setWindowTitle("Settings")
+        window.setWindowFlag(Qt.WindowMinimizeButtonHint, False)
+        window.setWindowFlag(Qt.WindowMaximizeButtonHint, False)
+        window.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
 
-        main_layout = QVBoxLayout()
+        main_layout = QVBoxLayout(window)
         main_layout.setAlignment(Qt.AlignTop)
-        window.setLayout(main_layout)
+
+        # Settings related to geometries.
+        box = QGroupBox("Geometry")
+        main_layout.addWidget(box)
+        box_layout = QVBoxLayout(box)
 
         self.settings_field_cp = QSpinBox()
         self.settings_field_cp.setRange(2, 100)
         self.settings_field_cp.setValue(3)
         self.settings_field_cp.setAlignment(Qt.AlignRight)
-        self.settings_field_cp.setToolTip("Default number of control points used when adding new geometries.")
+        self.settings_field_cp.setToolTip("Default number of control points used when adding a new geometry.")
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Default Control Points:"))
         layout.addWidget(self.settings_field_cp)
-        main_layout.addLayout(layout)
+        box_layout.addLayout(layout)
 
         self.settings_field_nodes = QSpinBox()
         self.settings_field_nodes.setRange(2, 100)
         self.settings_field_nodes.setValue(10)
         self.settings_field_nodes.setAlignment(Qt.AlignRight)
-        self.settings_field_nodes.setToolTip("Default number of nodes used when adding new geometries.")
+        self.settings_field_nodes.setToolTip("Default number of nodes used when adding a new geometry.")
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Default Nodes:"))
         layout.addWidget(self.settings_field_nodes)
-        main_layout.addLayout(layout)
+        box_layout.addLayout(layout)
 
-        main_layout.addSpacing(10)
+        box_layout.addSpacing(10)
 
         self.settings_field_hermite_tangent_scaling = QDoubleSpinBox()
         self.settings_field_hermite_tangent_scaling.setRange(1.0, 100.0)
@@ -315,20 +328,23 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout()
         layout.addWidget(QLabel(f"{Geometry.HERMITE} Tangent Scaling:"))
         layout.addWidget(self.settings_field_hermite_tangent_scaling)
-        main_layout.addLayout(layout)
+        box_layout.addLayout(layout)
 
-        main_layout.addSpacing(10)
+        # Settings related to the visualizer.
+        box = QGroupBox("Visualizer")
+        main_layout.addWidget(box)
+        box_layout = QVBoxLayout(box)
 
         self.settings_field_mouse_modifier = QDoubleSpinBox()
         self.settings_field_mouse_modifier.setMinimum(0.01)
         self.settings_field_mouse_modifier.setValue(1.00)
         self.settings_field_mouse_modifier.setSingleStep(0.5)
         self.settings_field_mouse_modifier.setAlignment(Qt.AlignRight)
-        self.settings_field_mouse_modifier.setToolTip("Value multiplied to mouse positions, in pixels, fix incorrect positions on some devices.")
+        self.settings_field_mouse_modifier.setToolTip("Multiply mouse positions, in pixels, by this value to fix incorrect mouse positions on some devices.")
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Mouse Position Modifier:"))
         layout.addWidget(self.settings_field_mouse_modifier)
-        main_layout.addLayout(layout)
+        box_layout.addLayout(layout)
 
         self.settings_field_mouse_z_depth = QDoubleSpinBox()
         self.settings_field_mouse_z_depth.setRange(0.0, 10.0)
@@ -339,7 +355,7 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout()
         layout.addWidget(QLabel("Mouse Z Depth:"))
         layout.addWidget(self.settings_field_mouse_z_depth)
-        main_layout.addLayout(layout)
+        box_layout.addLayout(layout)
 
         return window
     
@@ -360,6 +376,10 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(QLabel(PROGRAM_NAME), alignment=Qt.AlignCenter)
         main_layout.addWidget(QLabel(f"Version: {'.'.join([str(_) for _ in PROGRAM_VERSION])}"), alignment=Qt.AlignCenter)
         main_layout.addWidget(QLabel(f"Authors: {', '.join(AUTHORS)}"), alignment=Qt.AlignCenter)
+
+        label_url = QLabel(f"<a href='https://github.com/mlee-0/ME-6104-Project/'>Show on GitHub...</a>")
+        label_url.setOpenExternalLinks(True)
+        main_layout.addWidget(label_url, alignment=Qt.AlignCenter)
 
         return window
 
@@ -678,6 +698,7 @@ class MainWindow(QMainWindow):
             self.field_nodes_v.setEnabled(is_surface)
             self.fields_order.setEnabled(True)
             self.field_order.setVisible(is_all_order_modifiable)
+            self.label_order.setVisible(not is_all_order_modifiable)
             self.button_delete.setEnabled(True)
 
             self.field_cp_u.blockSignals(True)

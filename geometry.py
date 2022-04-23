@@ -367,7 +367,7 @@ class Geometry(ABC):
         return self.actor_cp, self.actor_nodes
     
     def __repr__(self) -> str:
-        return f"{self.geometry_name} {self.geometry_type} #{self.instance}"
+        return f"{self.geometry_name} {self.geometry_type} {self.instance}"
 
 class Curve(Geometry):
     geometry_type = "curve"
