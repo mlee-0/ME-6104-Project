@@ -79,25 +79,33 @@ class Geometry(ABC):
 
     # Default color of control point actors.
     color_default_cp = [_*255 for _ in BLUE]
-    color_highlight_cp = [_*255 for _ in BLUE_LIGHT]
-    color_lines_cp = [_*255 for _ in YELLOW]
-    # Property object that defines the appearance of nodes actors.
-    property_default_nodes = vtk.vtkProperty()
-    property_default_nodes.SetColor(GRAY_80)
-    property_default_nodes.SetEdgeColor(GRAY_20)
-    property_default_nodes.SetVertexVisibility(False)
-    property_default_nodes.SetEdgeVisibility(True)
-    # property_default_nodes.SetRenderLinesAsTubes(True)
-    # property_default_nodes.SetLineWidth(5)
-    property_default_nodes.SetLighting(False)
-    property_highlight_nodes = vtk.vtkProperty()
-    property_highlight_nodes.SetColor(WHITE)
-    property_highlight_nodes.SetEdgeColor(BLACK)
-    property_highlight_nodes.SetVertexVisibility(False)
-    property_highlight_nodes.SetEdgeVisibility(True)
-    # property_highlight_nodes.SetRenderLinesAsTubes(True)
-    # property_highlight_nodes.SetLineWidth(5)
-    property_highlight_nodes.SetLighting(False)
+    color_highlight_cp = [255*0.8 + _*0.2 for _ in color_default_cp]
+    color_lines_cp = [_*255 for _ in GRAY_50]
+
+    # Property objects that define the default and highlighted appearances of nodes actors.
+    property_default_surface = vtk.vtkProperty()
+    property_default_surface.SetColor(GRAY_80)
+    property_default_surface.SetEdgeColor(GRAY_20)
+    property_default_surface.SetVertexVisibility(False)
+    property_default_surface.SetEdgeVisibility(True)
+    property_default_surface.SetLighting(False)
+    
+    property_highlight_surface = vtk.vtkProperty()
+    property_highlight_surface.SetColor(WHITE)
+    property_highlight_surface.SetEdgeColor(BLACK)
+    property_highlight_surface.SetVertexVisibility(False)
+    property_highlight_surface.SetEdgeVisibility(True)
+    property_highlight_surface.SetLighting(False)
+
+    property_default_curve = vtk.vtkProperty()
+    property_default_curve.DeepCopy(property_default_surface)
+    property_default_curve.SetRenderLinesAsTubes(True)
+    property_default_curve.SetLineWidth(5)
+
+    property_highlight_curve = vtk.vtkProperty()
+    property_highlight_curve.DeepCopy(property_highlight_surface)
+    property_highlight_curve.SetRenderLinesAsTubes(True)
+    property_highlight_curve.SetLineWidth(5)
 
     def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None, order: int = None):
         self.cp = cp.astype(float)
@@ -146,7 +154,9 @@ class Geometry(ABC):
 
         self.actor_nodes = vtk.vtkActor()
         self.actor_nodes.SetMapper(mapper_nodes)
-        self.actor_nodes.GetProperty().DeepCopy(Geometry.property_default_nodes)
+        self.actor_nodes.GetProperty().DeepCopy(
+            Geometry.property_default_curve if isinstance(self, Curve) else Geometry.property_default_surface
+        )
     
     @classmethod
     def increment_instances(cls):
@@ -419,7 +429,7 @@ class Hermite(Geometry):
     def resize_cp(self, *args, **kwargs) -> None:
         """Return None because Hermite geometries have a fixed number of control points."""
         return None
-    
+
 class HermiteCurve(Hermite, Curve):
     @staticmethod
     def calculate_tangents(cp: np.ndarray) -> np.ndarray:

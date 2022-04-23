@@ -25,6 +25,7 @@ AUTHORS = ["Sujay Kestur", "Marshall Lee"]
 # The temporary folder created when running an executable created by PyInstaller, or the current folder when running this script directly.
 FOLDER_ROOT = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()

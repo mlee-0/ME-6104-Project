@@ -7,7 +7,7 @@ from typing import List, Tuple
 import vtk
 
 from colors import *
-from geometry import Geometry
+from geometry import Geometry, Curve
 
 
 class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
@@ -183,11 +183,17 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
         """Highlight the given nodes actor."""
         # Restore the original appearance of the previous actor.
         if self.previous_nodes_actor is not None and self.previous_nodes_actor not in self.selected_nodes_actor:
-            self.previous_nodes_actor.GetProperty().DeepCopy(Geometry.property_default_nodes)
+            is_curve = isinstance(self.gui.get_geometry_of_actor(self.previous_nodes_actor), Curve)
+            self.previous_nodes_actor.GetProperty().DeepCopy(
+                Geometry.property_default_curve if is_curve else Geometry.property_default_surface
+            )
 
         # Highlight the actor.
         if actor:
-            actor.GetProperty().DeepCopy(Geometry.property_highlight_nodes)
+            is_curve = isinstance(self.gui.get_geometry_of_actor(actor), Curve)
+            actor.GetProperty().DeepCopy(
+                Geometry.property_highlight_curve if is_curve else Geometry.property_highlight_surface
+            )
         
         # Store the current actor, even if it is None.
         self.previous_nodes_actor = actor
@@ -221,7 +227,10 @@ class InteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
     def unhighlight_selection_nodes(self) -> None:
         """Remove highlighting from currently selected nodes actors."""
         for actor in self.selected_nodes_actor:
-            actor.GetProperty().DeepCopy(Geometry.property_default_nodes)
+            is_curve = isinstance(self.gui.get_geometry_of_actor(actor), Curve)
+            actor.GetProperty().DeepCopy(
+                Geometry.property_default_curve if is_curve else Geometry.property_default_surface
+            )
     
     def set_selection_point_id(self, point_id: int = None) -> None:
         """Set the given point ID as the current selection."""
