@@ -2,6 +2,7 @@
 Run this script to start the GUI.
 """
 
+import os
 import sys
 from typing import List
 
@@ -20,6 +21,9 @@ from interaction import InteractorStyle
 PROGRAM_NAME = "Curve and Surface Visualizer"
 PROGRAM_VERSION = (0, 0, 0)
 AUTHORS = ["Sujay Kestur", "Marshall Lee"]
+
+# The temporary folder created when running an executable created by PyInstaller, or the current folder when running this script directly.
+FOLDER_ROOT = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -373,7 +377,7 @@ class MainWindow(QMainWindow):
         window.setLayout(main_layout)
 
         logo = QLabel()
-        image = QPixmap("Images/logo.png").scaledToHeight(100)
+        image = QPixmap(os.path.join(FOLDER_ROOT, "Images/logo.png")).scaledToHeight(100)
         logo.setPixmap(image)
         main_layout.addWidget(logo, alignment=Qt.AlignCenter)
         main_layout.addWidget(QLabel(PROGRAM_NAME), alignment=Qt.AlignCenter)
@@ -854,7 +858,7 @@ if __name__ == '__main__':
     application = QApplication(sys.argv)
     window = MainWindow()
     window.setWindowTitle(PROGRAM_NAME)
-    window.setWindowIcon(QIcon("Images/logo.png"))
+    window.setWindowIcon(QIcon(os.path.join(FOLDER_ROOT, "Images/logo.png")))
     window.show()
     # Start the application.
     sys.exit(application.exec_())
