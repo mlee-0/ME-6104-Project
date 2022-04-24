@@ -8,8 +8,8 @@ from typing import List
 
 import numpy as np
 from PyQt5.QtCore import Qt, QStringListModel, QItemSelectionModel
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QCheckBox, QLabel, QSpinBox, QDoubleSpinBox, QGroupBox, QTabWidget, QListView, QListView, QAbstractItemView
+from PyQt5.QtGui import QIcon, QPixmap, QKeyEvent
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QCheckBox, QLabel, QSpinBox, QDoubleSpinBox, QGroupBox, QTabWidget, QListView, QAbstractItemView
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
@@ -119,6 +119,7 @@ class MainWindow(QMainWindow):
         self.geometry_list = QStringListModel()
         self.geometry_list_widget = QListView()
         self.geometry_list_widget.setModel(self.geometry_list)
+        self.geometry_list_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.geometry_list_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.geometry_list_widget.selectionModel().selectionChanged.connect(self.highlight_selected_geometry)
         main_layout.addWidget(self.geometry_list_widget)
@@ -502,8 +503,7 @@ class MainWindow(QMainWindow):
             np.linspace(0, 10, number_cp_u),  # x-coordinates
             np.linspace(0, 10, number_cp_u),  # y-coordinates
             np.zeros(number_cp_u),  # z-coordinates
-        ))
-        cp = np.expand_dims(cp, 2)
+        )).reshape((3, number_cp_u, 1))
 
         geometry = BezierCurve(cp, number_u)
         self.add_geometry(geometry)
@@ -528,8 +528,7 @@ class MainWindow(QMainWindow):
             np.linspace(0, 10, number_cp_u),  # x-coordinates
             np.linspace(0, 10, number_cp_u),  # y-coordinates
             np.zeros(number_cp_u),  # z-coordinates
-        ))
-        cp = np.expand_dims(cp, 2)
+        )).reshape((3, number_cp_u, 1))
 
         geometry = BSplineCurve(cp, number_u, order=order)
         self.add_geometry(geometry)
@@ -654,22 +653,23 @@ class MainWindow(QMainWindow):
     
     def remove_selected_geometries(self) -> None:
         """Remove all currently selected geometries."""
-        for geometry in self.selected_geometry:
-            self.iren.GetInteractorStyle().remove_from_pick_list(geometry)
-            
-            row_index = self.geometry_list.stringList().index(str(geometry))
-            self.geometry_list.removeRow(row_index)
-            
-            for actor in geometry.get_actors():
-                self.ren.RemoveActor(actor)
-            del self.geometries[self.geometries.index(geometry)]
+        if self.selected_geometry:
+            for geometry in self.selected_geometry:
+                self.iren.GetInteractorStyle().remove_from_pick_list(geometry)
+                
+                row_index = self.geometry_list.stringList().index(str(geometry))
+                self.geometry_list.removeRow(row_index)
+                
+                for actor in geometry.get_actors():
+                    self.ren.RemoveActor(actor)
+                del self.geometries[self.geometries.index(geometry)]
 
-        self.selected_geometry.clear()
-        self.selected_point = None
-        self.load_fields_with_selected_geometries()
-        self.update_label_order()
-        self.ren.Render()
-        self.iren.Render()
+            self.selected_geometry.clear()
+            self.selected_point = None
+            self.load_fields_with_selected_geometries()
+            self.update_label_order()
+            self.ren.Render()
+            self.iren.Render()
 
     def get_geometry_of_actor(self, actor: vtk.vtkActor) -> Geometry:
         """Return the Geometry object that contains the given actor, or return None if none exists."""
@@ -791,6 +791,11 @@ class MainWindow(QMainWindow):
                 geometry.update()
         self.ren.Render()
         self.iren.Render()
+    
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Define actions for key presses. This overrides the parent class method."""
+        if event.key() == Qt.Key_Backspace:
+            self.remove_selected_geometries()
     
     def preset_1(self):
         """Add three preset Bézier curves with G1 and C1 continuity."""
