@@ -50,7 +50,7 @@ def BezierCurveContinuity(cp1, cp2):
     for x, y in zip(diffcp2[0::], diffcp2[1::]):
         diff2cp2.append(y - x)
 
-    if (cp1[:, cp1.shape[1] - 1, :] == cp2[:, 0, :]).all() or (cp2[:, cp2.shape[1] - 1, :] == cp1[:, 0, :]).all():
+    if (cp1[:, -1, :] == cp2[:, 0, :]).all() or (cp2[:, -1, :] == cp1[:, 0, :]).all():
         if (diffcp1[len(diffcp1) - 1] == diffcp2[0]).all() or (diffcp2[len(diffcp2) - 1] == diffcp1[0]).all():
             if (diff2cp1[len(diff2cp1) - 1] == diff2cp2[0]).all() or (diff2cp2[len(diff2cp2) - 1] == diff2cp1[0]).all():
                 return ('C', 2)
@@ -72,61 +72,66 @@ def BezierCurveContinuity(cp1, cp2):
 
 
 def BezierSurfaceContinuity(cp1, cp2):
-    p1sides = np.zeros((4, len(cp1), len(cp1[0])))
-    for i in range(len(cp1)):
-        p1sides[0][i] = cp1[i][0]
-        p1sides[1][i] = cp1[i].T[0]
-        p1sides[2][i] = cp1[i][len(cp1) - 1]
-        p1sides[3][i] = cp1[i].T[len(cp1)-1]
+    p1sides = (
+        cp1[:, 0, :],
+        cp1[:, :, 0],
+        cp1[:, -1, :],
+        cp1[:, :, -1],
+    )
+    p2sides = (
+        cp2[:, 0, :],
+        cp2[:, :, 0],
+        cp2[:, -1, :],
+        cp2[:, :, -1],
+    )
+    p1tangents = (
+        np.squeeze(np.diff(cp1[:, :2, :], axis=1)),
+        np.squeeze(np.diff(cp1[:, :, :2], axis=2)),
+        np.squeeze(np.diff(cp1[:, -2:, :], axis=1)),
+        np.squeeze(np.diff(cp1[:, :, -2:], axis=2)),
+    )
+    p2tangents = (
+        np.squeeze(np.diff(cp2[:, :2, :], axis=1)),
+        np.squeeze(np.diff(cp2[:, :, :2], axis=2)),
+        np.squeeze(np.diff(cp2[:, -2:, :], axis=1)),
+        np.squeeze(np.diff(cp2[:, :, -2:], axis=2)),
+    )
 
-    p2sides = np.zeros((4, len(cp2), len(cp2[0])))
-    for i in range(len(cp2)):
-        p2sides[0][i] = cp2[i][0]
-        p2sides[1][i] = cp2[i].T[0]
-        p2sides[2][i] = cp2[i][len(cp2) - 1]
-        p2sides[3][i] = cp2[i].T[len(cp2)-1]
+    for side1 in p1sides:
+        for side2 in p2sides:
+            if side1.shape != side2.shape:
+                continue
+            
+            if (side1 == side2).all():
+                cp1 = side1
+                cp2 = side2
+                diffcp1 = [np.squeeze(np.diff(cp1[:, i:i+2], axis=1)) for i in range(cp1.shape[1]-1)]
+                diffcp2 = [np.squeeze(np.diff(cp2[:, i:i+2], axis=1)) for i in range(cp2.shape[1]-1)]
+                diff2cp1 = [y - x for x, y in zip(diffcp1[0::], diffcp1[1::])]
+                diff2cp2 = [y - x for x, y in zip(diffcp2[0::], diffcp2[1::])]
+                
+                diffTrue = np.zeros((len(diffcp1),len(diffcp1[0])))
+                for i in range(len(diffcp1)):
+                    diffTrue[i] = diffcp1[i] == diffcp2[i]
+                if (diffTrue).all():
+                    diff2True = np.zeros((len(diff2cp1),len(diff2cp1[0])));
+                    for i in range(len(diff2cp1)):
+                        diff2True[i] = diff2cp1[i] == diff2cp2[i]
+                    if (diff2True).all():
+                        return ('C', 2)
+                    return ('C', 1)
+                div1 = diffcp1[len(diffcp1) - 1] / diffcp2[0]
+                nan_array = np.isnan(div1)
+                not_nan_array = ~ nan_array
+                div1 = div1[not_nan_array]
 
-    for i in range(len(p1sides)):
-        for j in range(len(p2sides)):
-            if (p1sides[i] == p2sides[j]).all() and (p1sides[i] == p2sides[j]).all():
-                cp1 = p1sides[i]
-                cp2 = p2sides[j]
-                diffcp1 = []
-                diffcp2 = []
-                for x, y in zip(cp1, cp1[1::]):
-                    diffcp1.append(y - x)
-                for x, y in zip(cp2, cp2[1::]):
-                    diffcp2.append(y - x)
-                diff2cp1 = []
-                diff2cp2 = []
-                for x, y in zip(diffcp1[0::], diffcp1[1::]):
-                    diff2cp1.append(y - x)
-                for x, y in zip(diffcp2[0::], diffcp2[1::]):
-                    diff2cp2.append(y - x)
-                if (cp1 == cp2).all():
-                    diffTrue = np.zeros((len(diffcp1),len(diffcp1[0])))
-                    for i in range(len(diffcp1)):
-                        diffTrue[i] = diffcp1[i] == diffcp2[i]
-                    if (diffTrue).all():
-                        diff2True = np.zeros((len(diff2cp1),len(diff2cp1[0])));
-                        for i in range(len(diff2cp1)):
-                            diff2True[i] = diff2cp1[i] == diff2cp2[i]
-                        if (diff2True).all():
-                            return ('C', 2)
-                        return ('C', 1)
-                    div1 = diffcp1[len(diffcp1) - 1] / diffcp2[0]
-                    nan_array = np.isnan(div1)
-                    not_nan_array = ~ nan_array
-                    div1 = div1[not_nan_array]
+                div2 = diffcp2[len(diffcp2) - 1] / diffcp1[0]
+                nan_array = np.isnan(div2)
+                not_nan_array = ~ nan_array
+                div2 = div2[not_nan_array]
 
-                    div2 = diffcp2[len(diffcp2) - 1] / diffcp1[0]
-                    nan_array = np.isnan(div2)
-                    not_nan_array = ~ nan_array
-                    div2 = div2[not_nan_array]
-
-                    if (div1 == div1[0]).all() or (div2 == div2[0]).all():
-                        return ('G', 1)
-                    return ('CG', 0)
+                if (div1 == div1[0]).all() or (div2 == div2[0]).all():
+                    return ('G', 1)
                 return ('CG', 0)
     return None
 

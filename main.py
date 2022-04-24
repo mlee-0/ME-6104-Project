@@ -772,7 +772,7 @@ class MainWindow(QMainWindow):
                     continuities = []
                     # Calculate continuities for all pairs of geometries.
                     for i in range(len(geometries) - 1):
-                        for j in range(i, len(geometries)):
+                        for j in range(i+1, len(geometries)):
                             continuity = continuity_of(geometries[i].cp, geometries[j].cp)
                             if continuity:
                                 continuities.append(continuity)
