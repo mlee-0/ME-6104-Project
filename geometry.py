@@ -503,6 +503,11 @@ class BSplineCurve(BSpline, Curve):
     def max_order(self, number_cp_u: int = None) -> int:
         """Return the highest order that this geometry can have, based on the given number of control points."""
         return self.get_number_cp_u() if number_cp_u is None else number_cp_u
+    
+    @staticmethod
+    def continuity(cp_1, cp_2) -> Continuity:
+        continuity = bspline.continuity_of_curves(cp_1, cp_2)
+        return Continuity(*continuity) if continuity is not None else Continuity()
 
 class BSplineSurface(BSpline, Surface):
     @staticmethod
@@ -515,3 +520,8 @@ class BSplineSurface(BSpline, Surface):
             self.get_number_cp_u() if number_cp_u is None else number_cp_u,
             self.get_number_cp_v() if number_cp_v is None else number_cp_v,
         ])
+    
+    @staticmethod
+    def continuity(cp_1, cp_2) -> Continuity:
+        continuity = bspline.continuity_of_surfaces(cp_1, cp_2)
+        return Continuity(*continuity) if continuity is not None else Continuity()

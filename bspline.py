@@ -2,6 +2,8 @@
 Functions that calculate B-spline curves and surfaces.
 """
 
+from typing import Tuple
+
 import numpy as np
 
 
@@ -59,7 +61,7 @@ def basis(u: np.ndarray, i: np.ndarray, k: int, knots: np.ndarray) -> np.ndarray
 # plt.show()
 
 def curve(cp: np.ndarray, number_u: int, k: int) -> np.ndarray:
-    """Return an array of nodes with size 3-u-1."""
+    """Return an array of nodes with shape (3, u, 1)."""
     # Number of segments.
     n = cp.shape[1] - 1
     # Length of knots vector.
@@ -80,7 +82,7 @@ def curve(cp: np.ndarray, number_u: int, k: int) -> np.ndarray:
     return nodes
 
 def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
-    """Return an array of nodes with size 3-u-v."""
+    """Return an array of nodes with shape (3, u, v)."""
     # Number of segments in each direction.
     m = cp.shape[1] - 1
     n = cp.shape[2] - 1
@@ -105,6 +107,58 @@ def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
     for xyz in range(3):
         nodes[xyz, :, :] = basis(u, i, k, knots_u) @ cp[xyz, :, :] @ basis(v, j, k, knots_v).transpose()
     return nodes
+
+def continuity_of_curves(cp_1: np.ndarray, cp_2: np.ndarray) -> Tuple[str, int]:
+    """Return the continuity of two curves as a tuple (str, int), or return None if no continuity exists."""
+    endpoints_1 = (cp_1[:, 0, :], cp_1[:, -1, :])
+    endpoints_2 = (cp_2[:, 0, :], cp_2[:, -1, :])
+    tangents_1 = (np.diff(cp_1[:, :2, :], axis=1), np.diff(cp_1[:, -2:, :], axis=1))
+    tangents_2 = (np.diff(cp_2[:, :2, :], axis=1), np.diff(cp_2[:, -2:, :], axis=1))
+
+    for endpoint_1, tangent_1 in zip(endpoints_1, tangents_1):
+        for endpoint_2, tangent_2 in zip(endpoints_2, tangents_2):
+            # Check for C0/G0.
+            if np.all(endpoint_1 == endpoint_2):
+                # Check for C1.
+                if np.all(tangent_1 == tangent_2):
+                    return ('C', 1)
+                # Check for G1.
+                elif np.all((tangent_1 / np.linalg.norm(tangent_1)) == (tangent_2 / np.linalg.norm(tangent_2))):
+                    return ('G', 1)
+                else:
+                    pass
+                return ('CG', 0)
+
+def continuity_of_surfaces(cp_1: np.ndarray, cp_2: np.ndarray) -> Tuple[str, int]:
+    """Return the continuity of two surfaces as a tuple (str, int), or return None if no continuity exists."""
+    edges_1 = (cp_1[:, 0, :], cp_1[:, -1, :], cp_1[:, :, 0], cp_1[:, :, -1])
+    edges_2 = (cp_2[:, 0, :], cp_2[:, -1, :], cp_2[:, :, 0], cp_2[:, :, -1])
+    tangents_1 = (
+        np.diff(cp_1[:, :2, :], axis=1),
+        np.diff(cp_1[:, -2:, :], axis=1),
+        np.diff(cp_1[:, :, :2], axis=2),
+        np.diff(cp_1[:, :, -2:], axis=2),
+    )
+    tangents_2 = (
+        np.diff(cp_2[:, :2, :], axis=1),
+        np.diff(cp_2[:, -2:, :], axis=1),
+        np.diff(cp_2[:, :, :2], axis=2),
+        np.diff(cp_2[:, :, -2:], axis=2),
+    )
+
+    for edge_1, tangent_1 in zip(edges_1, tangents_1):
+        for edge_2, tangent_2 in zip(edges_2, tangents_2):
+            # Check for C0/G0.
+            if np.all(edge_1 == edge_2):
+                # Check for C1.
+                if np.all(tangent_1 == tangent_2):
+                    return ('C', 1)
+                # Check for G1.
+                elif np.all((tangent_1 / np.linalg.norm(tangent_1)) == (tangent_2 / np.linalg.norm(tangent_2))):
+                    return ('G', 1)
+                else:
+                    pass
+                return ('CG', 0)
 
 # from matplotlib import pyplot as plt
 # from mpl_toolkits import mplot3d
