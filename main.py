@@ -301,31 +301,31 @@ class MainWindow(QMainWindow):
 
         # Settings related to geometries.
         box = QGroupBox("Geometry")
-        box_layout = QFormLayout(box)
+        layout = QFormLayout(box)
         main_layout.addWidget(box)
 
         self.settings_field_cp = QSpinBox()
         self.settings_field_cp.setRange(2, 100)
         self.settings_field_cp.setValue(3)
         self.settings_field_cp.setToolTip("Default number of control points used when adding a new geometry.")
-        box_layout.addRow("Default Control Points:", self.settings_field_cp)
+        layout.addRow("Default Control Points:", self.settings_field_cp)
 
         self.settings_field_nodes = QSpinBox()
         self.settings_field_nodes.setRange(2, 100)
         self.settings_field_nodes.setValue(10)
         self.settings_field_nodes.setToolTip("Default number of nodes used when adding a new geometry.")
-        box_layout.addRow("Default Nodes:", self.settings_field_nodes)
+        layout.addRow("Default Nodes:", self.settings_field_nodes)
 
         self.settings_field_hermite_tangent_scaling = QDoubleSpinBox()
         self.settings_field_hermite_tangent_scaling.setRange(1.0, 100.0)
         self.settings_field_hermite_tangent_scaling.setValue(1.0)
         self.settings_field_hermite_tangent_scaling.setToolTip(f"Increase this value to increase the effect that modifying {Geometry.HERMITE} tangent vectors has on the shape.")
         self.settings_field_hermite_tangent_scaling.valueChanged.connect(self.update_hermite_tangent_scaling)
-        box_layout.addRow(f"{Geometry.HERMITE} Tangent Scaling:", self.settings_field_hermite_tangent_scaling)
+        layout.addRow(f"{Geometry.HERMITE} Tangent Scaling:", self.settings_field_hermite_tangent_scaling)
 
         # Settings related to the visualizer.
         box = QGroupBox("Visualizer")
-        box_layout = QFormLayout(box)
+        layout = QFormLayout(box)
         main_layout.addWidget(box)
 
         self.settings_field_mouse_modifier = QDoubleSpinBox()
@@ -333,28 +333,28 @@ class MainWindow(QMainWindow):
         self.settings_field_mouse_modifier.setValue(1.00)
         self.settings_field_mouse_modifier.setSingleStep(0.5)
         self.settings_field_mouse_modifier.setToolTip("Multiply mouse positions, in pixels, by this value to fix incorrect mouse positions on some devices.")
-        box_layout.addRow("Mouse Position Modifier:", self.settings_field_mouse_modifier)
+        layout.addRow("Mouse Position Modifier:", self.settings_field_mouse_modifier)
 
         self.settings_field_mouse_z_depth = QDoubleSpinBox()
         self.settings_field_mouse_z_depth.setRange(0.0, 10.0)
         self.settings_field_mouse_z_depth.setValue(0.5)
         self.settings_field_mouse_z_depth.setSingleStep(0.1)
         self.settings_field_mouse_z_depth.setToolTip("Increase this value to make mouse positions, in pixels, correspond to coordinates farther from the camera.")
-        box_layout.addRow("Mouse Z Depth:", self.settings_field_mouse_z_depth)
+        layout.addRow("Mouse Z Depth:", self.settings_field_mouse_z_depth)
 
         # Settings related to saving images.
         box = QGroupBox("Export")
-        box_layout = QFormLayout(box)
+        layout = QFormLayout(box)
         main_layout.addWidget(box)
 
         self.settings_field_save_scale = QSpinBox()
         self.settings_field_save_scale.setRange(1, 5)
         self.settings_field_save_scale.setToolTip("Increase this value to increase the resolution of the saved image.")
-        box_layout.addRow("Image Scale:", self.settings_field_save_scale)
+        layout.addRow("Image Scale:", self.settings_field_save_scale)
 
         self.settings_checkbox_save_transparency = QCheckBox("Include Transparency")
         self.settings_checkbox_save_transparency.setChecked(True)
-        box_layout.addRow("", self.settings_checkbox_save_transparency)
+        layout.addRow("", self.settings_checkbox_save_transparency)
 
         return window
     
@@ -415,6 +415,7 @@ class MainWindow(QMainWindow):
     def show_settings(self) -> None:
         """Show the Settings window."""
         self.window_settings.show()
+        self.window_settings.setFixedSize(self.window_settings.size())
     
     def show_about(self) -> None:
         """Show the About window."""

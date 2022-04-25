@@ -150,7 +150,7 @@ class Geometry(ABC):
         self.actor_cp.GetProperty().SetEdgeVisibility(True)
         self.actor_cp.GetProperty().SetVertexVisibility(True)
         self.actor_cp.GetProperty().SetPointSize(15)
-        self.actor_cp.GetProperty().SetLineWidth(2)
+        self.actor_cp.GetProperty().SetLineWidth(1)
 
         self.actor_nodes = vtk.vtkActor()
         self.actor_nodes.SetMapper(mapper_nodes)
@@ -276,19 +276,6 @@ class Geometry(ABC):
         self.data_cp.SetPoints(self.points_cp)
         self.data_cp.SetVerts(self.vertices_cp)
 
-        # Add lines to Hermite geometries.
-        if isinstance(self, Hermite):
-            lines = vtk.vtkCellArray()
-            if isinstance(self, HermiteCurve):
-                lines.InsertNextCell(2, [0, 2])
-                lines.InsertNextCell(2, [1, 3])
-            elif isinstance(self, HermiteSurface):
-                for i in (0, 1, 4, 5):
-                    lines.InsertNextCell(2, [i, i+2])  # Tangent vector
-                    lines.InsertNextCell(2, [i, i+8])  # Tangent vector
-                    lines.InsertNextCell(2, [i, i+10])  # Twist vector
-            self.data_cp.SetLines(lines)
-        
         # Add nodes.
         for i in range(self.nodes.shape[1]):
             for j in range(self.nodes.shape[2]):
@@ -304,11 +291,6 @@ class Geometry(ABC):
         colors.SetNumberOfTuples(len(self.ids_cp))
         for tuple_id in self.ids_cp:
             colors.SetTuple(tuple_id, Geometry.color_default_cp)
-        if isinstance(self, Hermite):
-            # Add colors to lines in Hermite geometries.
-            for i in range(lines.GetNumberOfCells()):
-                tuple_id = i + len(self.ids_cp)
-                colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
         self.data_cp.GetCellData().SetScalars(colors)
         self.data_cp.Modified()
 
@@ -406,6 +388,26 @@ class BezierCurve(Bezier, Curve):
     def continuity(cp_1, cp_2) -> str:
         continuity = bezier.BezierCurveContinuity(cp_1, cp_2)
         return Continuity(*continuity) if continuity is not None else Continuity()
+    
+    def reset_data(self) -> None:
+        """Extend the base class method to add lines between control points."""
+        super().reset_data()
+
+        # Add lines.
+        lines = vtk.vtkCellArray()
+        for i, point_id in enumerate(self.ids_cp):
+            if i == 0:
+                continue
+            else:
+                lines.InsertNextCell(2, [self.ids_cp[i-1], point_id])
+        self.data_cp.SetLines(lines)
+        
+        # Set line colors.
+        colors = self.data_cp.GetCellData().GetScalars()
+        for i in range(lines.GetNumberOfCells()):
+            tuple_id = i + len(self.ids_cp)
+            colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
+        self.data_cp.Modified()
 
 class BezierSurface(Bezier, Surface):
     @staticmethod
@@ -456,6 +458,23 @@ class HermiteCurve(Hermite, Curve):
         
     def get_order(self):
         return 3
+    
+    def reset_data(self) -> None:
+        """Extend the base class method to add lines for the tangent vectors."""
+        super().reset_data()
+
+        # Add lines.
+        lines = vtk.vtkCellArray()
+        lines.InsertNextCell(2, [0, 2])
+        lines.InsertNextCell(2, [1, 3])
+        self.data_cp.SetLines(lines)
+
+        # Set line colors.
+        colors = self.data_cp.GetCellData().GetScalars()
+        for i in range(lines.GetNumberOfCells()):
+            tuple_id = i + len(self.ids_cp)
+            colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
+        self.data_cp.Modified()
 
 class HermiteSurface(Hermite, Surface):
     @staticmethod
@@ -488,6 +507,25 @@ class HermiteSurface(Hermite, Surface):
     
     def get_order(self):
         return (3, 3)
+    
+    def reset_data(self) -> None:
+        """Extend the base class method to add lines for the tangent and twist vectors."""
+        super().reset_data()
+
+        # Add lines.
+        lines = vtk.vtkCellArray()
+        for i in (0, 1, 4, 5):
+            lines.InsertNextCell(2, [i, i+2])  # Tangent vector
+            lines.InsertNextCell(2, [i, i+8])  # Tangent vector
+            lines.InsertNextCell(2, [i, i+10])  # Twist vector
+        self.data_cp.SetLines(lines)
+
+        # Set line colors.
+        colors = self.data_cp.GetCellData().GetScalars()
+        for i in range(lines.GetNumberOfCells()):
+            tuple_id = i + len(self.ids_cp)
+            colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
+        self.data_cp.Modified()
 
 class BSpline(Geometry):
     geometry_name = Geometry.BSPLINE
@@ -508,6 +546,26 @@ class BSplineCurve(BSpline, Curve):
     def continuity(cp_1, cp_2) -> Continuity:
         continuity = bspline.continuity_of_curves(cp_1, cp_2)
         return Continuity(*continuity) if continuity is not None else Continuity()
+    
+    def reset_data(self) -> None:
+        """Extend the base class method to add lines between control points."""
+        super().reset_data()
+
+        # Add lines.
+        lines = vtk.vtkCellArray()
+        for i, point_id in enumerate(self.ids_cp):
+            if i == 0:
+                continue
+            else:
+                lines.InsertNextCell(2, [self.ids_cp[i-1], point_id])
+        self.data_cp.SetLines(lines)
+        
+        # Set line colors.
+        colors = self.data_cp.GetCellData().GetScalars()
+        for i in range(lines.GetNumberOfCells()):
+            tuple_id = i + len(self.ids_cp)
+            colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
+        self.data_cp.Modified()
 
 class BSplineSurface(BSpline, Surface):
     @staticmethod
