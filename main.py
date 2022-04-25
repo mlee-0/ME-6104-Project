@@ -8,9 +8,9 @@ from typing import List
 
 import numpy as np
 from PyQt5.QtCore import Qt, QStringListModel, QItemSelectionModel
-from PyQt5.QtGui import QIcon, QPixmap, QKeyEvent
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QMenu, QWidget, QFrame, QPushButton, QCheckBox, QLabel, QSpinBox, QDoubleSpinBox, QGroupBox, QTabWidget, QListView, QAbstractItemView
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout
+from PyQt5.QtGui import QIcon, QPixmap, QKeyEvent, QKeySequence
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDialog, QFileDialog, QMenu, QWidget, QFrame, QPushButton, QCheckBox, QLabel, QSpinBox, QDoubleSpinBox, QGroupBox, QTabWidget, QListView, QAbstractItemView
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QFormLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
 
@@ -39,6 +39,7 @@ class MainWindow(QMainWindow):
         # Create the menu bar.
         menu_bar = self.menuBar()
         menu_file = menu_bar.addMenu("File")
+        menu_file.addAction("Save As Image...", self.save_image, QKeySequence(Qt.CTRL + Qt.Key_S))
         menu_file.addAction("Settings...", self.show_settings)
         menu_file.addAction("About...", self.show_about)
         menu_presets = menu_bar.addMenu("Presets")
@@ -300,68 +301,60 @@ class MainWindow(QMainWindow):
 
         # Settings related to geometries.
         box = QGroupBox("Geometry")
+        box_layout = QFormLayout(box)
         main_layout.addWidget(box)
-        box_layout = QVBoxLayout(box)
 
         self.settings_field_cp = QSpinBox()
         self.settings_field_cp.setRange(2, 100)
         self.settings_field_cp.setValue(3)
-        self.settings_field_cp.setAlignment(Qt.AlignRight)
         self.settings_field_cp.setToolTip("Default number of control points used when adding a new geometry.")
-        layout = QHBoxLayout()
-        layout.addWidget(QLabel("Default Control Points:"))
-        layout.addWidget(self.settings_field_cp)
-        box_layout.addLayout(layout)
+        box_layout.addRow("Default Control Points:", self.settings_field_cp)
 
         self.settings_field_nodes = QSpinBox()
         self.settings_field_nodes.setRange(2, 100)
         self.settings_field_nodes.setValue(10)
-        self.settings_field_nodes.setAlignment(Qt.AlignRight)
         self.settings_field_nodes.setToolTip("Default number of nodes used when adding a new geometry.")
-        layout = QHBoxLayout()
-        layout.addWidget(QLabel("Default Nodes:"))
-        layout.addWidget(self.settings_field_nodes)
-        box_layout.addLayout(layout)
-
-        box_layout.addSpacing(10)
+        box_layout.addRow("Default Nodes:", self.settings_field_nodes)
 
         self.settings_field_hermite_tangent_scaling = QDoubleSpinBox()
         self.settings_field_hermite_tangent_scaling.setRange(1.0, 100.0)
         self.settings_field_hermite_tangent_scaling.setValue(1.0)
-        self.settings_field_hermite_tangent_scaling.setAlignment(Qt.AlignRight)
         self.settings_field_hermite_tangent_scaling.setToolTip(f"Increase this value to increase the effect that modifying {Geometry.HERMITE} tangent vectors has on the shape.")
         self.settings_field_hermite_tangent_scaling.valueChanged.connect(self.update_hermite_tangent_scaling)
-        layout = QHBoxLayout()
-        layout.addWidget(QLabel(f"{Geometry.HERMITE} Tangent Scaling:"))
-        layout.addWidget(self.settings_field_hermite_tangent_scaling)
-        box_layout.addLayout(layout)
+        box_layout.addRow(f"{Geometry.HERMITE} Tangent Scaling:", self.settings_field_hermite_tangent_scaling)
 
         # Settings related to the visualizer.
         box = QGroupBox("Visualizer")
+        box_layout = QFormLayout(box)
         main_layout.addWidget(box)
-        box_layout = QVBoxLayout(box)
 
         self.settings_field_mouse_modifier = QDoubleSpinBox()
         self.settings_field_mouse_modifier.setMinimum(0.01)
         self.settings_field_mouse_modifier.setValue(1.00)
         self.settings_field_mouse_modifier.setSingleStep(0.5)
-        self.settings_field_mouse_modifier.setAlignment(Qt.AlignRight)
         self.settings_field_mouse_modifier.setToolTip("Multiply mouse positions, in pixels, by this value to fix incorrect mouse positions on some devices.")
-        layout = QHBoxLayout()
-        layout.addWidget(QLabel("Mouse Position Modifier:"))
-        layout.addWidget(self.settings_field_mouse_modifier)
-        box_layout.addLayout(layout)
+        box_layout.addRow("Mouse Position Modifier:", self.settings_field_mouse_modifier)
 
         self.settings_field_mouse_z_depth = QDoubleSpinBox()
         self.settings_field_mouse_z_depth.setRange(0.0, 10.0)
         self.settings_field_mouse_z_depth.setValue(0.5)
         self.settings_field_mouse_z_depth.setSingleStep(0.1)
-        self.settings_field_mouse_z_depth.setAlignment(Qt.AlignRight)
         self.settings_field_mouse_z_depth.setToolTip("Increase this value to make mouse positions, in pixels, correspond to coordinates farther from the camera.")
-        layout = QHBoxLayout()
-        layout.addWidget(QLabel("Mouse Z Depth:"))
-        layout.addWidget(self.settings_field_mouse_z_depth)
-        box_layout.addLayout(layout)
+        box_layout.addRow("Mouse Z Depth:", self.settings_field_mouse_z_depth)
+
+        # Settings related to saving images.
+        box = QGroupBox("Export")
+        box_layout = QFormLayout(box)
+        main_layout.addWidget(box)
+
+        self.settings_field_save_scale = QSpinBox()
+        self.settings_field_save_scale.setRange(1, 5)
+        self.settings_field_save_scale.setToolTip("Increase this value to increase the resolution of the saved image.")
+        box_layout.addRow("Image Scale:", self.settings_field_save_scale)
+
+        self.settings_checkbox_save_transparency = QCheckBox("Include Transparency")
+        self.settings_checkbox_save_transparency.setChecked(True)
+        box_layout.addRow("", self.settings_checkbox_save_transparency)
 
         return window
     
@@ -388,6 +381,37 @@ class MainWindow(QMainWindow):
 
         return window
 
+    def save_image(self) -> None:
+        """Open a file dialog and save the visualizer as an image."""
+        dialog = QFileDialog(
+            self,
+            caption="",
+            directory=os.path.join(os.path.curdir, "screenshot.png"),
+            filter="Image files (*.png)",
+        )
+        # Set the suffix added to the file name, if the user does not specify one.
+        dialog.setDefaultSuffix("png")
+        # Set the dialog to save mode.
+        dialog.setAcceptMode(QFileDialog.AcceptSave)
+        # dialog.setFilter("Image files (*.png)")
+        # The user specified a file name.
+        if dialog.exec():
+            filename = dialog.selectedFiles()[0]
+
+            filter = vtk.vtkWindowToImageFilter()
+            filter.SetInput(self.renwin)
+            filter.SetScale(self.settings_field_save_scale.value())
+            if self.settings_checkbox_save_transparency.isChecked():
+                filter.SetInputBufferTypeToRGBA()
+            else:
+                filter.SetInputBufferTypeToRGB()
+            filter.Update()
+
+            writer = vtk.vtkPNGWriter()
+            writer.SetFileName(filename)
+            writer.SetInputConnection(filter.GetOutputPort())
+            writer.Write()
+    
     def show_settings(self) -> None:
         """Show the Settings window."""
         self.window_settings.show()
