@@ -12,9 +12,9 @@ A GUI program for viewing and modifying curves and surfaces in 3D, written in Py
 
 | Curves | | Surfaces | |
 | --- | --- | --- | --- |
-| Bézier curve | <img src="Images/bezier_curve.png" height=100> | Bézier surface | <img src="Images/bezier_surface.png" height=100> |
-| Hermite curve | <img src="Images/hermite_curve.png" height=100> | Hermite surface | <img src="Images/hermite_surface.png" height=100> |
-| B-spline curve | <img src="Images/bspline_curve.png" height=100> | B-spline surface | <img src="Images/bspline_surface.png" height=100> |
+| Bézier curve | <img src="Images/bezier_curve.png" height=200> | Bézier surface | <img src="Images/bezier_surface.png" height=200> |
+| Hermite curve | <img src="Images/hermite_curve.png" height=200> | Hermite surface | <img src="Images/hermite_surface.png" height=200> |
+| B-spline curve | <img src="Images/bspline_curve.png" height=200> | B-spline surface | <img src="Images/bspline_surface.png" height=200> |
 
 ## Running
 Run this program by downloading the executable file or downloading and running the source code.
@@ -54,14 +54,13 @@ Translate a geometry by clicking and dragging it in the visualizer. Translate mu
 Click the Delete button to remove the currently selected geometries, or press Backspace after selecting geometries in the list view.
 
 ### Adjusting the visualizer camera
-| | |
+| Mouse | Camera |
 | ---: | :-- |
 | Left-click | Rotate |
 | Shift + Left-click | Pan |
 | Control/Command + Left-click | Roll |
 | Scroll | Zoom |
 | Right-click | Zoom |
-| | |
 
 Click the buttons below the visualizer to reset the camera to predefined orientations or automatically adjust the position of the camera so that all selected geometries are visible.
 
