@@ -4,6 +4,7 @@ Classes that store control points and nodes for curves and surfaces.
 
 
 from abc import ABC, abstractmethod
+import sys
 from typing import Tuple
 
 import numpy as np
@@ -146,7 +147,7 @@ class Geometry(ABC):
         # Create actors used to display geometry.
         self.actor_cp = vtk.vtkActor()
         self.actor_cp.SetMapper(mapper_cp)
-        self.actor_cp.GetProperty().SetRenderPointsAsSpheres(True)
+        self.actor_cp.GetProperty().SetRenderPointsAsSpheres(not sys.platform.startswith("win"))
         self.actor_cp.GetProperty().SetEdgeVisibility(True)
         self.actor_cp.GetProperty().SetVertexVisibility(True)
         self.actor_cp.GetProperty().SetPointSize(15)
