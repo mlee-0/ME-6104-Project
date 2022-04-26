@@ -16,9 +16,9 @@ def curve(cp, num):
     u = np.linspace(0, 1, num)
     n = cp.shape[1] - 1
     M = np.array([bernstein_poly(u, k, n) for k in range(0, n + 1)]).transpose()
-    points = M @ cp.transpose()
+    nodes = M @ cp.transpose()
 
-    return points.transpose()
+    return nodes.transpose()
 
 
 def surface(cp, num_u, num_v):
@@ -28,11 +28,9 @@ def surface(cp, num_u, num_v):
     n_v = cp.shape[2] - 1
     M_u = np.array([bernstein_poly(u, k, n_u) for k in range(0, n_u + 1)]).transpose()
     M_v = np.array([bernstein_poly(v, k, n_v) for k in range(0, n_v + 1)])
-    points = np.empty((3, num_u, num_v))
-    for i in range(points.shape[0]):
-        points[i, ...] = M_u @ cp[i, ...] @ M_v
+    nodes = M_u @ cp @ M_v
 
-    return points
+    return nodes
 
 
 def BezierCurveContinuity(cp1, cp2):
@@ -137,27 +135,26 @@ def BezierSurfaceContinuity(cp1, cp2):
 
 
 # # Initialize control points
-cp_1 = np.array([[[3, 10, 0], [4, 7, 0], [6, 6, 0], [7.5, 7.5, 0]]]).transpose()
-cp_2 = np.array([[[7.5, 7.5, 0], [8.2, 8.2, 0], [11, 7, 0], [14, 6, 0]]]).transpose()
-print(BezierCurveContinuity(cp_1, cp_2))
-# cpp = np.array([[[1, 3, 6, 8],
-#                  [1, 3, 6, 8],
-#                  [1, 3, 6, 8],
-#                  [1, 3, 6, 8]],
-#                 [[20, 21, 22, 23],
-#                  [17, 17, 17, 17],
-#                  [14, 14, 14, 14],
-#                  [11, 11, 11, 11]],
-#                 [[2, 5, 4, 3],
-#                  [2, 6, 5, 5],
-#                  [2, 6, 5, 4],
-#                  [2, 3, 4, 3]]])
+# cp_1 = np.array([[[3, 10, 0], [4, 7, 0], [6, 6, 0], [7.5, 7.5, 0]]]).transpose()
+# cp_2 = np.array([[[7.5, 7.5, 0], [8.2, 8.2, 0], [11, 7, 0], [14, 6, 0]]]).transpose()
+# print(BezierCurveContinuity(cp_1, cp_2))
+# # cpp = np.array([[[1, 3, 6, 8],
+# #                  [1, 3, 6, 8],
+# #                  [1, 3, 6, 8],
+# #                  [1, 3, 6, 8]],
+# #                 [[20, 21, 22, 23],
+# #                  [17, 17, 17, 17],
+# #                  [14, 14, 14, 14],
+# #                  [11, 11, 11, 11]],
+# #                 [[2, 5, 4, 3],
+# #                  [2, 6, 5, 5],
+# #                  [2, 6, 5, 4],
+# #                  [2, 3, 4, 3]]])
 
-cp_1 = np.array([[[0, 20, 0], [8, 21, 5], [18, 23, 0]],
-                 [[0, 17, 0], [8, 17, 6], [18, 17, 3]],
-                 [[0, 14, 0], [8, 14, 6], [18, 14, 4]]]).transpose((2, 0, 1))
-cp_2 = np.array([[[0, 14, 0], [8, 14, 6], [18, 14, 4]],
-                 [[0, 11, 0], [8, 11, 6], [18, 11, 5]],
-                 [[0, 0, 0], [8, 0, 0], [18, 0, 0]]]).transpose((2, 0, 1))
-print(BezierSurfaceContinuity(cp_1, cp_2))
-
+# cp_1 = np.array([[[0, 20, 0], [8, 21, 5], [18, 23, 0]],
+#                  [[0, 17, 0], [8, 17, 6], [18, 17, 3]],
+#                  [[0, 14, 0], [8, 14, 6], [18, 14, 4]]]).transpose((2, 0, 1))
+# cp_2 = np.array([[[0, 14, 0], [8, 14, 6], [18, 14, 4]],
+#                  [[0, 11, 0], [8, 11, 6], [18, 11, 5]],
+#                  [[0, 0, 0], [8, 0, 0], [18, 0, 0]]]).transpose((2, 0, 1))
+# print(BezierSurfaceContinuity(cp_1, cp_2))

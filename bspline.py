@@ -76,9 +76,7 @@ def curve(cp: np.ndarray, number_u: int, k: int) -> np.ndarray:
     # Segment indices.
     i = np.arange(n+1)
     # Calculate nodes.
-    nodes = np.empty((3, number_u, 1))
-    for xyz in range(3):
-        nodes[xyz, :, :] = basis(u, i, k, knots) @ cp[xyz, :, :]
+    nodes = basis(u, i, k, knots) @ cp
     return nodes
 
 def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
@@ -103,9 +101,7 @@ def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
     i = np.arange(m+1)
     j = np.arange(n+1)
     # Calculate nodes.
-    nodes = np.empty((3, number_u, number_v))
-    for xyz in range(3):
-        nodes[xyz, :, :] = basis(u, i, k, knots_u) @ cp[xyz, :, :] @ basis(v, j, k, knots_v).transpose()
+    nodes = basis(u, i, k, knots_u) @ cp @ basis(v, j, k, knots_v).transpose()
     return nodes
 
 def continuity_of_curves(cp_1: np.ndarray, cp_2: np.ndarray) -> Tuple[str, int]:

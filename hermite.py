@@ -9,10 +9,7 @@ import numpy as np
 def HermiteCurve(p, num):
     points = np.linspace(0, 1, num)
     m = [[2, -2, 1, 1], [-3, 3, -2, -1], [0, 0, 1, 0], [1, 0, 0, 0]]
-    curve = np.zeros((len(p), num, 1))
-    for i in range(len(points)):
-        for j in range(len(p)):
-            curve[j, i, 0] = np.matmul(np.matmul([points[i] ** 3, points[i] ** 2, points[i], 1], m), p[j])
+    curve = np.array((points**3, points**2, points, points**0)).transpose() @ m @ p
     return curve
 
 
@@ -22,13 +19,11 @@ def HermiteSurface(p, num_u, num_v):
     points_v = np.linspace(0, 1, num_v)
     
     m = np.array([[2, -2, 1, 1], [-3, 3, -2, -1], [0, 0, 1, 0], [1, 0, 0, 0]])
-    surface = np.empty((3, num_u, num_v))
-    for i in range(3):
-        surface[i, ...] = (
-            np.array((points_u**3, points_u**2, points_u, points_u**0)).transpose()
-            @ m @ p[i, ...] @ m.transpose()
-            @ np.array((points_v**3, points_v**2, points_v, points_v**0))
-        )
+    surface = (
+        np.array((points_u**3, points_u**2, points_u, points_u**0)).transpose()
+        @ m @ p @ m.transpose()
+        @ np.array((points_v**3, points_v**2, points_v, points_v**0))
+    )
     return surface
 
 
