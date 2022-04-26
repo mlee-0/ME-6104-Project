@@ -10,6 +10,12 @@ A GUI program for viewing and modifying curves and surfaces in 3D, written in Py
 - Select multiple geometries of the same type to view their continuity
 - Export geometries shown in the window as an image
 
+| Curves | | Surfaces | |
+| --- | --- | --- | --- |
+| Bézier curve | <img src="Images/bezier_curve.png" height=100> | Bézier surface | <img src="Images/bezier_surface.png" height=100> |
+| Hermite curve | <img src="Images/hermite_curve.png" height=100> | Hermite surface | <img src="Images/hermite_surface.png" height=100> |
+| B-spline curve | <img src="Images/bspline_curve.png" height=100> | B-spline surface | <img src="Images/bspline_surface.png" height=100> |
+
 ## Running
 Run this program by downloading the executable file or downloading and running the source code.
 
