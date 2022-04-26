@@ -27,6 +27,12 @@ FOLDER_ROOT = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)
 
 
 class MainWindow(QMainWindow):
+    """
+    The main window of the program, which defines the layout and contents of the window and what occurs in response to user input.
+
+    Methods prefixed with a single underscore are intended to be run only one time, during startup.
+    """
+
     def __init__(self):
         super().__init__()
 
@@ -113,9 +119,9 @@ class MainWindow(QMainWindow):
 
         main_layout.addStretch(1)
 
-        self.label_selected = QLabel()
-        self.label_selected.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(self.label_selected)
+        self.label_continuity = QLabel()
+        self.label_continuity.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.label_continuity)
 
         self.geometry_list = QStringListModel()
         self.geometry_list_widget = QListView()
@@ -421,23 +427,20 @@ class MainWindow(QMainWindow):
         """Show the About window."""
         self.window_about.show()
 
-    def update_label_selected(self) -> None:
-        """Display information about the currently selected geometries in the label."""
-        if len(self.selected_geometry) == 1:
-            self.label_selected.clear()
-        # Show the continuity of the geometries.
-        elif len(self.selected_geometry) > 1:
+    def update_label_continuity(self) -> None:
+        """Display the continuity of the currently selected geometries in the label."""
+        if len(self.selected_geometry) > 1:
             continuity = self.calculate_continuity(*self.selected_geometry)
-            # Continuity was calculated.
+            # Show the continuity if it was calculated.
             if continuity is not None:
-                self.label_selected.setText(f"{len(self.selected_geometry)} {self.selected_geometry[0].geometry_name} {self.selected_geometry[0].geometry_type}s have {continuity} continuity")
-            # Continuity cannot be calculated.
+                self.label_continuity.setText(f"{len(self.selected_geometry)} {self.selected_geometry[0].geometry_name} {self.selected_geometry[0].geometry_type}s have {continuity} continuity")
+            # If continuity cannot be calculated, show the number of selected geometries.
             else:
                 geometry_types = tuple(set([_.geometry_type for _ in self.selected_geometry]))
                 geometry_type = f"{geometry_types[0]}s" if len(geometry_types) == 1 else "geometries"
-                self.label_selected.setText(f"{len(self.selected_geometry)} {geometry_type} selected")
+                self.label_continuity.setText(f"{len(self.selected_geometry)} {geometry_type} selected")
         else:
-            self.label_selected.clear()
+            self.label_continuity.clear()
     
     def highlight_selected_geometry(self, new, old) -> None:
         """Highlight the selected geometries in the visualizer, and load the fields with their information."""
@@ -458,7 +461,7 @@ class MainWindow(QMainWindow):
             self.set_selected_geometry(None)
         
         self.load_fields_with_selected_geometries()
-        self.update_label_selected()
+        self.update_label_continuity()
         self.update_label_order()
         
         self.ren.Render()
@@ -719,7 +722,7 @@ class MainWindow(QMainWindow):
         
     def load_fields_with_selected_geometries(self) -> None:
         """Populate the fields in the GUI with the information of the selected geometries, or disable them if no geometries are selected."""
-        self.update_label_selected()
+        self.update_label_continuity()
         self.update_label_order()
 
         if self.selected_geometry:
@@ -782,14 +785,14 @@ class MainWindow(QMainWindow):
             self.geometry_list_widget.clearSelection()
 
     def calculate_continuity(self, *geometries) -> Continuity:
-        """Return the continuity of the given geometries, returning None if continuity cannot be calculated."""
+        """Return the continuity of the given geometries, or return None if continuity cannot be calculated."""
         if len(geometries) >= 2:
             geometry_classes = set([type(_) for _ in geometries])
-            # Only calculate continuity if all selected geometries are of the same class.
+            # Calculate continuity only if all selected geometries are of the same class.
             if len(geometry_classes) == 1:
                 # Get the class's method for calculating continuity.
                 try:
-                    continuity_of = tuple(geometry_classes)[0].continuity
+                    continuity_function = tuple(geometry_classes)[0].continuity
                 # The class does not have a method for calculating continuity.
                 except AttributeError:
                     return None
@@ -798,7 +801,8 @@ class MainWindow(QMainWindow):
                     # Calculate continuities for all pairs of geometries.
                     for i in range(len(geometries) - 1):
                         for j in range(i+1, len(geometries)):
-                            continuity = continuity_of(geometries[i].cp, geometries[j].cp)
+                            continuity = continuity_function(geometries[i].cp, geometries[j].cp)
+                            # Append the continuity only if at least C0/G0, ignoring pairs that have no continuity.
                             if continuity:
                                 continuities.append(continuity)
                     # Return the lowest continuity found.
@@ -862,8 +866,6 @@ class MainWindow(QMainWindow):
             [[11,0,0], [11,10,0], [10,0,1], [10,10,1]],
             [[21,0,0], [21,10,0], [20,0,1], [20,10,1]],
         ]).transpose((2,0,1))
-        # cp_1[:, 2:, 2:] = cp_1[:, :2, :2]
-        # cp_2[:, 2:, 2:] = cp_2[:, :2, :2]
         number_u = number_v = self.settings_field_nodes.value()
         self.add_geometry(HermiteSurface(cp_1, number_u, number_v))
         self.add_geometry(HermiteSurface(cp_2, number_u, number_v))
