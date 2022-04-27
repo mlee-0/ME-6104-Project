@@ -46,13 +46,15 @@ class MainWindow(QMainWindow):
         menu_bar = self.menuBar()
         menu_file = menu_bar.addMenu("File")
         menu_file.addAction("Save As Image...", self.save_image, QKeySequence(Qt.CTRL + Qt.Key_S))
+        menu_file.addSeparator()
         menu_file.addAction("Settings...", self.show_settings)
-        menu_file.addAction("About...", self.show_about)
         menu_presets = menu_bar.addMenu("Presets")
         menu_presets.addAction(f"3 {Geometry.BEZIER} Curves", self.preset_1)
         menu_presets.addAction(f"2 {Geometry.BEZIER} Surfaces", self.preset_2)
         menu_presets.addAction(f"2 {Geometry.HERMITE} Curves", self.preset_3)
         menu_presets.addAction(f"2 {Geometry.HERMITE} Surfaces", self.preset_4)
+        menu_help = menu_bar.addMenu("Help")
+        menu_help.addAction("About...", self.show_about)
 
         # Create the overall layout of the window.
         layout = QGridLayout()
@@ -369,6 +371,7 @@ class MainWindow(QMainWindow):
         window = QDialog(self)
         window.setModal(True)
         window.setWindowTitle("About")
+        window.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
 
         main_layout = QVBoxLayout()
         main_layout.setAlignment(Qt.AlignCenter)
@@ -427,86 +430,6 @@ class MainWindow(QMainWindow):
         """Show the About window."""
         self.window_about.show()
 
-    def update_label_continuity(self) -> None:
-        """Display the continuity of the currently selected geometries in the label."""
-        if len(self.selected_geometry) > 1:
-            continuity = self.calculate_continuity(*self.selected_geometry)
-            # Show the continuity if it was calculated.
-            if continuity is not None:
-                self.label_continuity.setText(f"{len(self.selected_geometry)} {self.selected_geometry[0].geometry_name} {self.selected_geometry[0].geometry_type}s have {continuity} continuity")
-            # If continuity cannot be calculated, show the number of selected geometries.
-            else:
-                geometry_types = tuple(set([_.geometry_type for _ in self.selected_geometry]))
-                geometry_type = f"{geometry_types[0]}s" if len(geometry_types) == 1 else "geometries"
-                self.label_continuity.setText(f"{len(self.selected_geometry)} {geometry_type} selected")
-        else:
-            self.label_continuity.clear()
-    
-    def highlight_selected_geometry(self, new, old) -> None:
-        """Highlight the selected geometries in the visualizer, and load the fields with their information."""
-        self.iren.GetInteractorStyle().unhighlight_selection_point()
-        self.iren.GetInteractorStyle().unhighlight_selection_nodes()
-        
-        names = [str(_) for _ in self.geometries]
-        indices = self.geometry_list_widget.selectionModel().selectedIndexes()
-        is_multiselection = len(indices) > 1
-        if len(indices):
-            for index in indices:
-                name = self.geometry_list.data(index, Qt.DisplayRole)
-                geometry = self.geometries[names.index(name)]
-                self.set_selected_geometry(geometry, append=is_multiselection)
-                self.iren.GetInteractorStyle().set_selection_nodes(geometry.actor_nodes, append=is_multiselection)
-                self.iren.GetInteractorStyle().highlight_actor(geometry.actor_nodes)
-        else:
-            self.set_selected_geometry(None)
-        
-        self.load_fields_with_selected_geometries()
-        self.update_label_continuity()
-        self.update_label_order()
-        
-        self.ren.Render()
-        self.iren.Render()
-    
-    def select_in_geometry_list(self, geometry: Geometry) -> None:
-        """Highlight the item in the geometry list corresponding to the given Geometry. Changing the selection in the list emits the selectionChanged signal, which updates the fields."""
-        for i in range(self.geometry_list.rowCount()):
-            index = self.geometry_list.index(i, 0)
-            name = self.geometry_list.data(index, Qt.DisplayRole)
-            if name == str(geometry):
-                self.geometry_list_widget.selectionModel().select(index, QItemSelectionModel.Select)
-    
-    def set_camera_top(self) -> None:
-        """Set the camera to look down along the Z direction."""
-        camera = self.ren.GetActiveCamera()
-        camera.SetViewUp(0, 1, 0)
-        x, y, z = camera.GetPosition()
-        camera.SetFocalPoint(x, y, z-1)
-        self.reset_camera()
-    
-    def set_camera_front(self) -> None:
-        """Set the camera to look forward along the Y direction."""
-        camera = self.ren.GetActiveCamera()
-        camera.SetViewUp(0, 0, 1)
-        x, y, z = camera.GetPosition()
-        camera.SetFocalPoint(x, y+1, z)
-        self.reset_camera()
-    
-    def set_camera_fit(self) -> None:
-        """Adjust the camera so that the selected geometries, or all geometries if none are selected, are visible."""
-        if self.selected_geometry:
-            data_combined = vtk.vtkAppendPoints()
-            for geometry in self.selected_geometry:
-                data_combined.AddInputData(geometry.actor_cp.GetMapper().GetInput())
-            data_combined.Update()
-            self.ren.ResetCamera(data_combined.GetOutput().GetBounds())
-        else:
-            self.ren.ResetCamera()
-        self.iren.Render()
-    
-    def reset_camera(self) -> None:
-        self.ren.ResetCamera()
-        self.iren.Render()
-
     def add_geometry(self, geometry: Geometry) -> None:
         """Add the Geometry object to the list of all geometries and add its actors to the visualizer."""
         self.geometries.append(geometry)
@@ -521,6 +444,26 @@ class MainWindow(QMainWindow):
 
         self.ren.Render()
         self.reset_camera()
+
+    def remove_selected_geometries(self) -> None:
+        """Remove all currently selected geometries."""
+        if self.selected_geometry:
+            for geometry in self.selected_geometry:
+                self.iren.GetInteractorStyle().remove_from_pick_list(geometry)
+                
+                row_index = self.geometry_list.stringList().index(str(geometry))
+                self.geometry_list.removeRow(row_index)
+                
+                for actor in geometry.get_actors():
+                    self.ren.RemoveActor(actor)
+                del self.geometries[self.geometries.index(geometry)]
+
+            self.selected_geometry.clear()
+            self.selected_point = None
+            self.load_fields_with_selected_geometries()
+            self.update_label_order()
+            self.ren.Render()
+            self.iren.Render()
 
     def make_bezier_curve(self) -> None:
         """Add a preset Bezier curve to the visualizer."""
@@ -679,26 +622,82 @@ class MainWindow(QMainWindow):
         else:
             self.label_order.clear()
     
-    def remove_selected_geometries(self) -> None:
-        """Remove all currently selected geometries."""
-        if self.selected_geometry:
-            for geometry in self.selected_geometry:
-                self.iren.GetInteractorStyle().remove_from_pick_list(geometry)
-                
-                row_index = self.geometry_list.stringList().index(str(geometry))
-                self.geometry_list.removeRow(row_index)
-                
-                for actor in geometry.get_actors():
-                    self.ren.RemoveActor(actor)
-                del self.geometries[self.geometries.index(geometry)]
+    def update_label_continuity(self) -> None:
+        """Display the continuity of the currently selected geometries in the label."""
+        if len(self.selected_geometry) > 1:
+            continuity = self.calculate_continuity(*self.selected_geometry)
+            # Show the continuity if it was calculated.
+            if continuity is not None:
+                self.label_continuity.setText(f"{len(self.selected_geometry)} {self.selected_geometry[0].geometry_name} {self.selected_geometry[0].geometry_type}s have {continuity} continuity")
+            # If continuity cannot be calculated, show the number of selected geometries.
+            else:
+                geometry_types = tuple(set([_.geometry_type for _ in self.selected_geometry]))
+                geometry_type = f"{geometry_types[0]}s" if len(geometry_types) == 1 else "geometries"
+                self.label_continuity.setText(f"{len(self.selected_geometry)} {geometry_type} selected")
+        else:
+            self.label_continuity.clear()
+    
+    def calculate_continuity(self, *geometries) -> Continuity:
+        """Return the continuity of the given geometries, or return None if continuity cannot be calculated."""
+        if len(geometries) >= 2:
+            geometry_classes = set([type(_) for _ in geometries])
+            # Calculate continuity only if all selected geometries are of the same class.
+            if len(geometry_classes) == 1:
+                # Get the class's method for calculating continuity.
+                try:
+                    continuity_function = tuple(geometry_classes)[0].continuity
+                # The class does not have a method for calculating continuity.
+                except AttributeError:
+                    return None
+                else:
+                    continuities = []
+                    # Calculate continuities for all pairs of geometries.
+                    for i in range(len(geometries) - 1):
+                        for j in range(i+1, len(geometries)):
+                            continuity = continuity_function(geometries[i].cp, geometries[j].cp)
+                            # Append the continuity only if at least C0/G0, ignoring pairs that have no continuity.
+                            if continuity:
+                                continuities.append(continuity)
+                    # Return the lowest continuity found.
+                    if len(continuities) > 0:
+                        return min(continuities)
+                    # No continuity was found.
+                    else:
+                        return Continuity()
 
-            self.selected_geometry.clear()
-            self.selected_point = None
-            self.load_fields_with_selected_geometries()
-            self.update_label_order()
-            self.ren.Render()
-            self.iren.Render()
-
+    def highlight_selected_geometry(self, new, old) -> None:
+        """Highlight the selected geometries in the visualizer, and load the fields with their information."""
+        self.iren.GetInteractorStyle().unhighlight_selection_point()
+        self.iren.GetInteractorStyle().unhighlight_selection_nodes()
+        
+        names = [str(_) for _ in self.geometries]
+        indices = self.geometry_list_widget.selectionModel().selectedIndexes()
+        is_multiselection = len(indices) > 1
+        if len(indices):
+            for index in indices:
+                name = self.geometry_list.data(index, Qt.DisplayRole)
+                geometry = self.geometries[names.index(name)]
+                self.set_selected_geometry(geometry, append=is_multiselection)
+                self.iren.GetInteractorStyle().set_selection_nodes(geometry.actor_nodes, append=is_multiselection)
+                self.iren.GetInteractorStyle().highlight_actor(geometry.actor_nodes)
+        else:
+            self.set_selected_geometry(None)
+        
+        self.load_fields_with_selected_geometries()
+        self.update_label_continuity()
+        self.update_label_order()
+        
+        self.ren.Render()
+        self.iren.Render()
+    
+    def select_in_geometry_list(self, geometry: Geometry) -> None:
+        """Highlight the item in the geometry list corresponding to the given Geometry. Changing the selection in the list emits the selectionChanged signal, which updates the fields."""
+        for i in range(self.geometry_list.rowCount()):
+            index = self.geometry_list.index(i, 0)
+            name = self.geometry_list.data(index, Qt.DisplayRole)
+            if name == str(geometry):
+                self.geometry_list_widget.selectionModel().select(index, QItemSelectionModel.Select)
+    
     def get_geometry_of_actor(self, actor: vtk.vtkActor) -> Geometry:
         """Return the Geometry object that contains the given actor, or return None if none exists."""
         for geometry in self.geometries:
@@ -784,34 +783,38 @@ class MainWindow(QMainWindow):
             self.button_delete.setEnabled(False)
             self.geometry_list_widget.clearSelection()
 
-    def calculate_continuity(self, *geometries) -> Continuity:
-        """Return the continuity of the given geometries, or return None if continuity cannot be calculated."""
-        if len(geometries) >= 2:
-            geometry_classes = set([type(_) for _ in geometries])
-            # Calculate continuity only if all selected geometries are of the same class.
-            if len(geometry_classes) == 1:
-                # Get the class's method for calculating continuity.
-                try:
-                    continuity_function = tuple(geometry_classes)[0].continuity
-                # The class does not have a method for calculating continuity.
-                except AttributeError:
-                    return None
-                else:
-                    continuities = []
-                    # Calculate continuities for all pairs of geometries.
-                    for i in range(len(geometries) - 1):
-                        for j in range(i+1, len(geometries)):
-                            continuity = continuity_function(geometries[i].cp, geometries[j].cp)
-                            # Append the continuity only if at least C0/G0, ignoring pairs that have no continuity.
-                            if continuity:
-                                continuities.append(continuity)
-                    # Return the lowest continuity found.
-                    if len(continuities) > 0:
-                        return min(continuities)
-                    # No continuity was found.
-                    else:
-                        return 'no'
-
+    def set_camera_top(self) -> None:
+        """Set the camera to look down along the Z direction."""
+        camera = self.ren.GetActiveCamera()
+        camera.SetViewUp(0, 1, 0)
+        x, y, z = camera.GetPosition()
+        camera.SetFocalPoint(x, y, z-1)
+        self.reset_camera()
+    
+    def set_camera_front(self) -> None:
+        """Set the camera to look forward along the Y direction."""
+        camera = self.ren.GetActiveCamera()
+        camera.SetViewUp(0, 0, 1)
+        x, y, z = camera.GetPosition()
+        camera.SetFocalPoint(x, y+1, z)
+        self.reset_camera()
+    
+    def set_camera_fit(self) -> None:
+        """Adjust the camera so that the selected geometries, or all geometries if none are selected, are visible."""
+        if self.selected_geometry:
+            data_combined = vtk.vtkAppendPoints()
+            for geometry in self.selected_geometry:
+                data_combined.AddInputData(geometry.actor_cp.GetMapper().GetInput())
+            data_combined.Update()
+            self.ren.ResetCamera(data_combined.GetOutput().GetBounds())
+        else:
+            self.ren.ResetCamera()
+        self.iren.Render()
+    
+    def reset_camera(self) -> None:
+        self.ren.ResetCamera()
+        self.iren.Render()
+    
     def update_hermite_tangent_scaling(self, value: float) -> None:
         """Update the Hermite tangent scaling value and update all Hermite geometries."""
         Hermite.hermite_tangent_scaling = value
