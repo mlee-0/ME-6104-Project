@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QFormLayout, QGridLayout
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor  # type: ignore (this comment hides the warning shown by PyLance in VS Code)
 
+from continuity import Continuity
 from geometry import *
 from interaction import InteractorStyle
 
