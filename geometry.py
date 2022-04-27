@@ -1,9 +1,10 @@
 """
-Classes that store control points and nodes for curves and surfaces.
+Classes used by the program to store control points and nodes for all types of curves and surfaces.
 """
 
 
 from abc import ABC, abstractmethod
+import sys
 from typing import Tuple
 
 import numpy as np
@@ -12,62 +13,15 @@ import vtk
 import bezier
 import hermite
 import bspline
+from continuity import Continuity
 from colors import *
 
-
-class Continuity:
-    """A class that contains information about the continuity between two geometries and defines which of two continuities is lower or higher when compared with a comparison operator (<, >, ==, etc.)."""
-    def __init__(self, type: str = None, order: int = None):
-        if type is not None and order is not None:
-            assert type in ('C', 'G', 'CG'), f"Invalid continuity type {type}."
-            assert not (order > 0 and type == 'CG'), f"Invalid continuity type {type} for order greater than 0."
-        self.order = order
-        self.type = type
-    
-    def __bool__(self) -> bool:
-        """Return True if continuity exists."""
-        return self.type is not None and self.order is not None
-    
-    def __eq__(self, continuity) -> bool:
-        """Return True if this object has the same continuity as the one given."""
-        if self and continuity:
-            # C0 and G0 are equivalent.
-            if self.order == 0 and continuity.order == 0:
-                return True
-            # At orders above 0, C is higher than G, and the two are not equivalent.
-            else:
-                return self.order == continuity.order and self.type == continuity.type
-        else:
-            return False
-    
-    def __lt__(self, continuity) -> bool:
-        """Return True if this object has continuity less than the one given."""
-        if self and continuity:
-            return (
-                (self.order < continuity.order or self.type == 'G' and continuity.type == 'C') and
-                self != continuity
-            )
-        else:
-            return False
-    
-    def __le__(self, continuity) -> bool:
-        """Return True if this object has continuity less than or equal to the one given."""
-        return self < continuity or self == continuity
-    
-    def __repr__(self) -> str:
-        if self:
-            if self.order == 0:
-                return "/".join([f"{type}{self.order}" for type in self.type])
-            else:
-                return f"{self.type}{self.order}"
-        else:
-            return "no"
 
 class Geometry(ABC):
     """
     Base class for all geometries.
 
-    All Geometry objects have a 3-dimensional `numpy.ndarray` of control points `cp` and a 3-dimensional `numpy.ndarray` of nodes `nodes`. The values in both arrays are added to two corresponding `vtkPoints` objects, which are connected to `vtkActor` objects that are shown on the screen.
+    All Geometry objects have a 3D `numpy.ndarray` of control points `cp` with shape `(3, u, v)` and a 3D `numpy.ndarray` of nodes `nodes` with shape `(3, u, v)`, where `v` is 1 for curves. The values in both arrays are added to two corresponding `vtkPoints` objects, which are connected to `vtkActor` objects that are shown on the screen.
     """
 
     BEZIER = "Bézier"
@@ -79,25 +33,33 @@ class Geometry(ABC):
 
     # Default color of control point actors.
     color_default_cp = [_*255 for _ in BLUE]
-    color_highlight_cp = [_*255 for _ in BLUE_LIGHT]
-    color_lines_cp = [_*255 for _ in YELLOW]
-    # Property object that defines the appearance of nodes actors.
-    property_default_nodes = vtk.vtkProperty()
-    property_default_nodes.SetColor(GRAY_80)
-    property_default_nodes.SetEdgeColor(GRAY_20)
-    property_default_nodes.SetVertexVisibility(False)
-    property_default_nodes.SetEdgeVisibility(True)
-    # property_default_nodes.SetRenderLinesAsTubes(True)
-    # property_default_nodes.SetLineWidth(5)
-    property_default_nodes.SetLighting(False)
-    property_highlight_nodes = vtk.vtkProperty()
-    property_highlight_nodes.SetColor(WHITE)
-    property_highlight_nodes.SetEdgeColor(BLACK)
-    property_highlight_nodes.SetVertexVisibility(False)
-    property_highlight_nodes.SetEdgeVisibility(True)
-    # property_highlight_nodes.SetRenderLinesAsTubes(True)
-    # property_highlight_nodes.SetLineWidth(5)
-    property_highlight_nodes.SetLighting(False)
+    color_highlight_cp = [255*0.8 + _*0.2 for _ in color_default_cp]
+    color_lines_cp = [_*255 for _ in GRAY_50]
+
+    # Property objects that define the default and highlighted appearances of nodes actors.
+    property_default_surface = vtk.vtkProperty()
+    property_default_surface.SetColor(GRAY_80)
+    property_default_surface.SetEdgeColor(GRAY_20)
+    property_default_surface.SetVertexVisibility(False)
+    property_default_surface.SetEdgeVisibility(True)
+    property_default_surface.SetLighting(False)
+    
+    property_highlight_surface = vtk.vtkProperty()
+    property_highlight_surface.SetColor(WHITE)
+    property_highlight_surface.SetEdgeColor(BLACK)
+    property_highlight_surface.SetVertexVisibility(False)
+    property_highlight_surface.SetEdgeVisibility(True)
+    property_highlight_surface.SetLighting(False)
+
+    property_default_curve = vtk.vtkProperty()
+    property_default_curve.DeepCopy(property_default_surface)
+    property_default_curve.SetRenderLinesAsTubes(True)
+    property_default_curve.SetLineWidth(5)
+
+    property_highlight_curve = vtk.vtkProperty()
+    property_highlight_curve.DeepCopy(property_highlight_surface)
+    property_highlight_curve.SetRenderLinesAsTubes(True)
+    property_highlight_curve.SetLineWidth(5)
 
     def __init__(self, cp: np.ndarray, number_u: int = None, number_v: int = None, order: int = None):
         self.cp = cp.astype(float)
@@ -138,15 +100,17 @@ class Geometry(ABC):
         # Create actors used to display geometry.
         self.actor_cp = vtk.vtkActor()
         self.actor_cp.SetMapper(mapper_cp)
-        self.actor_cp.GetProperty().SetRenderPointsAsSpheres(True)
+        self.actor_cp.GetProperty().SetRenderPointsAsSpheres(not sys.platform.startswith("win"))
         self.actor_cp.GetProperty().SetEdgeVisibility(True)
         self.actor_cp.GetProperty().SetVertexVisibility(True)
         self.actor_cp.GetProperty().SetPointSize(15)
-        self.actor_cp.GetProperty().SetLineWidth(2)
+        self.actor_cp.GetProperty().SetLineWidth(1)
 
         self.actor_nodes = vtk.vtkActor()
         self.actor_nodes.SetMapper(mapper_nodes)
-        self.actor_nodes.GetProperty().DeepCopy(Geometry.property_default_nodes)
+        self.actor_nodes.GetProperty().DeepCopy(
+            Geometry.property_default_curve if isinstance(self, Curve) else Geometry.property_default_surface
+        )
     
     @classmethod
     def increment_instances(cls):
@@ -266,19 +230,6 @@ class Geometry(ABC):
         self.data_cp.SetPoints(self.points_cp)
         self.data_cp.SetVerts(self.vertices_cp)
 
-        # Add lines to Hermite geometries.
-        if isinstance(self, Hermite):
-            lines = vtk.vtkCellArray()
-            if isinstance(self, HermiteCurve):
-                lines.InsertNextCell(2, [0, 2])
-                lines.InsertNextCell(2, [1, 3])
-            elif isinstance(self, HermiteSurface):
-                for i in (0, 1, 4, 5):
-                    lines.InsertNextCell(2, [i, i+2])  # Tangent vector
-                    lines.InsertNextCell(2, [i, i+8])  # Tangent vector
-                    lines.InsertNextCell(2, [i, i+10])  # Twist vector
-            self.data_cp.SetLines(lines)
-        
         # Add nodes.
         for i in range(self.nodes.shape[1]):
             for j in range(self.nodes.shape[2]):
@@ -294,11 +245,6 @@ class Geometry(ABC):
         colors.SetNumberOfTuples(len(self.ids_cp))
         for tuple_id in self.ids_cp:
             colors.SetTuple(tuple_id, Geometry.color_default_cp)
-        if isinstance(self, Hermite):
-            # Add colors to lines in Hermite geometries.
-            for i in range(lines.GetNumberOfCells()):
-                tuple_id = i + len(self.ids_cp)
-                colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
         self.data_cp.GetCellData().SetScalars(colors)
         self.data_cp.Modified()
 
@@ -367,7 +313,7 @@ class Geometry(ABC):
         return self.actor_cp, self.actor_nodes
     
     def __repr__(self) -> str:
-        return f"{self.geometry_name} {self.geometry_type} #{self.instance}"
+        return f"{self.geometry_name} {self.geometry_type} {self.instance}"
 
 class Curve(Geometry):
     geometry_type = "curve"
@@ -396,6 +342,26 @@ class BezierCurve(Bezier, Curve):
     def continuity(cp_1, cp_2) -> str:
         continuity = bezier.BezierCurveContinuity(cp_1, cp_2)
         return Continuity(*continuity) if continuity is not None else Continuity()
+    
+    def reset_data(self) -> None:
+        """Extend the base class method to add lines between control points."""
+        super().reset_data()
+
+        # Add lines.
+        lines = vtk.vtkCellArray()
+        for i, point_id in enumerate(self.ids_cp):
+            if i == 0:
+                continue
+            else:
+                lines.InsertNextCell(2, [self.ids_cp[i-1], point_id])
+        self.data_cp.SetLines(lines)
+        
+        # Set line colors.
+        colors = self.data_cp.GetCellData().GetScalars()
+        for i in range(lines.GetNumberOfCells()):
+            tuple_id = i + len(self.ids_cp)
+            colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
+        self.data_cp.Modified()
 
 class BezierSurface(Bezier, Surface):
     @staticmethod
@@ -419,7 +385,7 @@ class Hermite(Geometry):
     def resize_cp(self, *args, **kwargs) -> None:
         """Return None because Hermite geometries have a fixed number of control points."""
         return None
-    
+
 class HermiteCurve(Hermite, Curve):
     @staticmethod
     def calculate_tangents(cp: np.ndarray) -> np.ndarray:
@@ -446,6 +412,23 @@ class HermiteCurve(Hermite, Curve):
         
     def get_order(self):
         return 3
+    
+    def reset_data(self) -> None:
+        """Extend the base class method to add lines for the tangent vectors."""
+        super().reset_data()
+
+        # Add lines.
+        lines = vtk.vtkCellArray()
+        lines.InsertNextCell(2, [0, 2])
+        lines.InsertNextCell(2, [1, 3])
+        self.data_cp.SetLines(lines)
+
+        # Set line colors.
+        colors = self.data_cp.GetCellData().GetScalars()
+        for i in range(lines.GetNumberOfCells()):
+            tuple_id = i + len(self.ids_cp)
+            colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
+        self.data_cp.Modified()
 
 class HermiteSurface(Hermite, Surface):
     @staticmethod
@@ -478,6 +461,25 @@ class HermiteSurface(Hermite, Surface):
     
     def get_order(self):
         return (3, 3)
+    
+    def reset_data(self) -> None:
+        """Extend the base class method to add lines for the tangent and twist vectors."""
+        super().reset_data()
+
+        # Add lines.
+        lines = vtk.vtkCellArray()
+        for i in (0, 1, 4, 5):
+            lines.InsertNextCell(2, [i, i+2])  # Tangent vector
+            lines.InsertNextCell(2, [i, i+8])  # Tangent vector
+            lines.InsertNextCell(2, [i, i+10])  # Twist vector
+        self.data_cp.SetLines(lines)
+
+        # Set line colors.
+        colors = self.data_cp.GetCellData().GetScalars()
+        for i in range(lines.GetNumberOfCells()):
+            tuple_id = i + len(self.ids_cp)
+            colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
+        self.data_cp.Modified()
 
 class BSpline(Geometry):
     geometry_name = Geometry.BSPLINE
@@ -493,6 +495,31 @@ class BSplineCurve(BSpline, Curve):
     def max_order(self, number_cp_u: int = None) -> int:
         """Return the highest order that this geometry can have, based on the given number of control points."""
         return self.get_number_cp_u() if number_cp_u is None else number_cp_u
+    
+    @staticmethod
+    def continuity(cp_1, cp_2) -> Continuity:
+        continuity = bspline.continuity_of_curves(cp_1, cp_2)
+        return Continuity(*continuity) if continuity is not None else Continuity()
+    
+    def reset_data(self) -> None:
+        """Extend the base class method to add lines between control points."""
+        super().reset_data()
+
+        # Add lines.
+        lines = vtk.vtkCellArray()
+        for i, point_id in enumerate(self.ids_cp):
+            if i == 0:
+                continue
+            else:
+                lines.InsertNextCell(2, [self.ids_cp[i-1], point_id])
+        self.data_cp.SetLines(lines)
+        
+        # Set line colors.
+        colors = self.data_cp.GetCellData().GetScalars()
+        for i in range(lines.GetNumberOfCells()):
+            tuple_id = i + len(self.ids_cp)
+            colors.InsertTuple(tuple_id, Geometry.color_lines_cp)
+        self.data_cp.Modified()
 
 class BSplineSurface(BSpline, Surface):
     @staticmethod
@@ -505,3 +532,8 @@ class BSplineSurface(BSpline, Surface):
             self.get_number_cp_u() if number_cp_u is None else number_cp_u,
             self.get_number_cp_v() if number_cp_v is None else number_cp_v,
         ])
+    
+    @staticmethod
+    def continuity(cp_1, cp_2) -> Continuity:
+        continuity = bspline.continuity_of_surfaces(cp_1, cp_2)
+        return Continuity(*continuity) if continuity is not None else Continuity()

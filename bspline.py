@@ -2,60 +2,66 @@
 Functions that calculate B-spline curves and surfaces.
 """
 
+from typing import Tuple
+
 import numpy as np
 
 
-def basis(u: np.ndarray, i: int, k: int, knots: np.ndarray) -> np.ndarray:
-    """Return the basis function as a 1D array for interpolation points u."""
+def basis(u: np.ndarray, i: np.ndarray, k: int, knots: np.ndarray) -> np.ndarray:
+    """
+    Return the basis function as a 2D array with shape (u, n+1).
+
+    `u`: 2D array of interpolation points with shape (number_u, 1).
+    `i`: 1D array of segment indices with shape (n+1,).
+    `k`: Integer defining the order.
+    `knots`: 1D array of knot values.
+    """
+
     if k > 1:
         # Calculate the first term.
+        numerator_1 = (u - knots[i]) * basis(u, i, k-1, knots)
         denominator_1 = knots[i+k-1] - knots[i]
-        if denominator_1 == 0.0:
-            # Set to 0 if dividing by zero.
-            term_1 = 0
-        else:
-            numerator_1 = (u - knots[i]) * basis(u, i, k-1, knots)
-            term_1 = numerator_1 / denominator_1
+        term_1 = np.empty((u.size, i.size))
+        where_division_by_zero = denominator_1 == 0.0
+        term_1[:, where_division_by_zero] = 0.0
+        term_1[:, ~where_division_by_zero] = numerator_1[:, ~where_division_by_zero] / denominator_1[~where_division_by_zero]
         
         # Calculate the second term.
+        numerator_2 = (knots[i+k] - u) * basis(u, i+1, k-1, knots)
         denominator_2 = knots[i+k] - knots[i+1]
-        if denominator_2 == 0.0:
-            # Set to 0 if dividing by zero.
-            term_2 = 0
-        else:
-            numerator_2 = (knots[i+k] - u) * basis(u, i+1, k-1, knots)
-            term_2 = numerator_2 / denominator_2
+        term_2 = np.empty((u.size, i.size))
+        where_division_by_zero = denominator_2 == 0.0
+        term_2[:, where_division_by_zero] = 0.0
+        term_2[:, ~where_division_by_zero] = numerator_2[:, ~where_division_by_zero] / denominator_2[~where_division_by_zero]
         return term_1 + term_2
     else:
-        # If this is the last segment, include the last knot to allow the shape to reach the last control point.
-        if knots[i] == knots[-1]-1:
-            return (u >= knots[i]) & (u <= knots[i+1])
-        # The mathematically correct equation.
-        else:
-            return (u >= knots[i]) & (u < knots[i+1])
+        output = np.empty((u.size, i.size))
+        output[:, :-1] = (u >= knots[i[:-1]]) & (u < knots[i[:-1]+1])
+        # For the last segment, include the last knot to allow the shape to reach the last control point.
+        output[:, -1:] = (u >= knots[i[-1]]) & (u <= knots[i[-1]+1])
+        return output
 
 # n = 5
-# k = 3
+# k = 4
 # T = n + k + 1
 # padding = k - 1
 # knots = np.arange(T - padding*2)
 # assert knots.size > 0, f"The order {k} is too high for the number of control points {n+1}."
 # knots = np.pad(knots, padding, mode="edge")
 # u = np.linspace(0, knots[-1], 75)
+# i = np.arange(n+1)
+# b = basis(u, i, k, knots)
 
 # from matplotlib import pyplot as plt
 # plt.figure()
 # for i in range(n+1):
 #     plt.subplot(n+1, 1, i+1)
-#     plt.plot(u, basis(u, i, k, knots), '.')
-#     # print(
-#     #     np.round(basis(u, i, k, knots), 2)
-#     # )
+#     plt.plot(u, b[:, i], '.')
 #     plt.xticks(range(n+1))
 # plt.show()
 
 def curve(cp: np.ndarray, number_u: int, k: int) -> np.ndarray:
-    """Return an array of nodes with size 3-u-1."""
+    """Return an array of nodes with shape (3, u, 1)."""
     # Number of segments.
     n = cp.shape[1] - 1
     # Length of knots vector.
@@ -66,15 +72,15 @@ def curve(cp: np.ndarray, number_u: int, k: int) -> np.ndarray:
     assert knots.size > 0, f"The order {k} is too high for the number of control points {n+1}."
     knots = np.pad(knots, padding, mode="edge")
     # Interpolation points.
-    u = np.linspace(0, knots[-1], number_u)
+    u = np.linspace(0, knots[-1], number_u).reshape((number_u, 1))
+    # Segment indices.
+    i = np.arange(n+1)
     # Calculate nodes.
-    nodes = np.zeros((3, number_u, 1))
-    for i in range(n+1):
-        nodes[:, :, 0] += basis(u, i, k, knots) * cp[:, i, :]
+    nodes = basis(u, i, k, knots) @ cp
     return nodes
 
 def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
-    """Return an array of nodes with size 3-u-v."""
+    """Return an array of nodes with shape (3, u, v)."""
     # Number of segments in each direction.
     m = cp.shape[1] - 1
     n = cp.shape[2] - 1
@@ -89,18 +95,66 @@ def surface(cp: np.ndarray, number_u: int, number_v: int, k: int) -> np.ndarray:
     knots_u = np.pad(knots_u, padding, mode="edge")
     knots_v = np.pad(knots_v, padding, mode="edge")
     # Interpolation points.
-    u = np.linspace(0, knots_u[-1], number_u)
-    v = np.linspace(0, knots_v[-1], number_v)
+    u = np.linspace(0, knots_u[-1], number_u).reshape((number_u, 1))
+    v = np.linspace(0, knots_v[-1], number_v).reshape((number_v, 1))
+    # Segment indices.
+    i = np.arange(m+1)
+    j = np.arange(n+1)
     # Calculate nodes.
-    nodes = np.zeros((3, number_u, number_v))
-    for i in range(m+1):
-        for j in range(n+1):
-            N_u = basis(u, i, k, knots_u)
-            N_v = basis(v, j, k, knots_v)
-            N_u = np.expand_dims(N_u, axis=(0, 2))
-            N_v = np.expand_dims(N_v, axis=(0, 1))
-            nodes[:, :, :] += N_u * N_v * np.expand_dims(cp[:, i, j], axis=(1, 2))
+    nodes = basis(u, i, k, knots_u) @ cp @ basis(v, j, k, knots_v).transpose()
     return nodes
+
+def continuity_of_curves(cp_1: np.ndarray, cp_2: np.ndarray) -> Tuple[str, int]:
+    """Return the continuity of two curves as a tuple (str, int), or return None if no continuity exists."""
+    endpoints_1 = (cp_1[:, 0, :], cp_1[:, -1, :])
+    endpoints_2 = (cp_2[:, 0, :], cp_2[:, -1, :])
+    tangents_1 = (np.diff(cp_1[:, :2, :], axis=1), np.diff(cp_1[:, -2:, :], axis=1))
+    tangents_2 = (np.diff(cp_2[:, :2, :], axis=1), np.diff(cp_2[:, -2:, :], axis=1))
+
+    for endpoint_1, tangent_1 in zip(endpoints_1, tangents_1):
+        for endpoint_2, tangent_2 in zip(endpoints_2, tangents_2):
+            # Check for C0/G0.
+            if np.all(endpoint_1 == endpoint_2):
+                # Check for C1.
+                if np.all(tangent_1 == tangent_2):
+                    return ('C', 1)
+                # Check for G1.
+                elif np.all((tangent_1 / np.linalg.norm(tangent_1)) == (tangent_2 / np.linalg.norm(tangent_2))):
+                    return ('G', 1)
+                else:
+                    pass
+                return ('CG', 0)
+
+def continuity_of_surfaces(cp_1: np.ndarray, cp_2: np.ndarray) -> Tuple[str, int]:
+    """Return the continuity of two surfaces as a tuple (str, int), or return None if no continuity exists."""
+    edges_1 = (cp_1[:, 0, :], cp_1[:, -1, :], cp_1[:, :, 0], cp_1[:, :, -1])
+    edges_2 = (cp_2[:, 0, :], cp_2[:, -1, :], cp_2[:, :, 0], cp_2[:, :, -1])
+    tangents_1 = (
+        np.diff(cp_1[:, :2, :], axis=1),
+        np.diff(cp_1[:, -2:, :], axis=1),
+        np.diff(cp_1[:, :, :2], axis=2),
+        np.diff(cp_1[:, :, -2:], axis=2),
+    )
+    tangents_2 = (
+        np.diff(cp_2[:, :2, :], axis=1),
+        np.diff(cp_2[:, -2:, :], axis=1),
+        np.diff(cp_2[:, :, :2], axis=2),
+        np.diff(cp_2[:, :, -2:], axis=2),
+    )
+
+    for edge_1, tangent_1 in zip(edges_1, tangents_1):
+        for edge_2, tangent_2 in zip(edges_2, tangents_2):
+            # Check for C0/G0.
+            if np.all(edge_1 == edge_2):
+                # Check for C1.
+                if np.all(tangent_1 == tangent_2):
+                    return ('C', 1)
+                # Check for G1.
+                elif np.all((tangent_1 / np.linalg.norm(tangent_1)) == (tangent_2 / np.linalg.norm(tangent_2))):
+                    return ('G', 1)
+                else:
+                    pass
+                return ('CG', 0)
 
 # from matplotlib import pyplot as plt
 # from mpl_toolkits import mplot3d
