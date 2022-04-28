@@ -588,7 +588,7 @@ class MainWindow(QMainWindow):
         self.selected_point = None
         self.load_fields()
         self.iren.GetInteractorStyle().set_selected_point_id(None)
-        self.iren.GetInteractorStyle().set_selection_cp(None)
+        self.iren.GetInteractorStyle().set_selected_cp(None)
 
         self.update_label_order()
         self.ren.Render()
